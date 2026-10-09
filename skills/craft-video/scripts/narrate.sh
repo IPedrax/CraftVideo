@@ -1,43 +1,51 @@
 #!/usr/bin/env bash
-# narrate.sh: generate narration with VoiceStudio (default engine VoxCPM2, Apache-2.0 weights).
-#   narrate.sh script.txt narration_raw.wav [--instruct "(voice description)"] [--seed N] [--engine voxcpm2]
-#              [--ref ref.wav --ref-text "what the reference says"] [--speed 1.0]
-# script.txt: one sentence per line, optional "label | sentence" (labels are stripped here).
-# Without --ref the voice is DESIGNED from --instruct; with --ref it is CLONED (only clone voices you have permission to use).
-# Leaves the backend running (more takes are common); stop it when you are done: voicestudio-backend stop
+# narrate.sh: the TTS dispatcher. Turns script.txt into narration_raw.wav with whichever TTS provider is chosen.
+#   narrate.sh script.txt narration_raw.wav [--provider NAME] [--instruct "(voice description)"] [--seed N] [--language English]
+#              [--speed 1.0] [--ref ref.wav --ref-text "what the reference says"] [--engine voxcpm2]
+# script.txt: one sentence per line, optional "label | sentence"; lines starting with # are ignored.
+# Provider order: --provider, env CRAFTVIDEO_TTS, ./craftvideo.json, ~/.config/craftvideo/config.json, then the first usable of
+# voicestudio, openai. List and test them with providers.sh and conformance.sh. Whatever the provider writes is normalised to
+# 48 kHz mono PCM16 here, so a provider may emit mp3/flac/ogg/wav at any rate (it is handed a .wav path, and ffmpeg sniffs
+# the real format from the content, so an engine that always writes mp3 still works).
+# --ref clones a voice: only with the speaker's permission. Options a provider cannot honour are refused or warned, never ignored.
 set -euo pipefail
-SCRIPT="${1:?usage: narrate.sh script.txt narration_raw.wav [options]}"; OUT="${2:?output wav}"; shift 2
-INSTRUCT="(a confident, measured narrator, documentary tone, clear and natural, studio quality)"
-SEED=20261009; ENGINE=voxcpm2; REF=""; REFTEXT=""; SPEED=""
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+SCRIPT="${1:?usage: narrate.sh script.txt narration_raw.wav [--provider NAME] [options]}"; OUT="${2:?output wav}"; shift 2
+PROV=""; PASS=(); REF=""; REFTEXT=""; INSTRUCT_GIVEN=""
 while [ $# -gt 0 ]; do
+  [ $# -ge 2 ] || cv_die "option $1 needs a value"
   case "$1" in
-    --instruct) INSTRUCT="$2"; shift 2;; --seed) SEED="$2"; shift 2;; --engine) ENGINE="$2"; shift 2;;
-    --ref) REF="$2"; shift 2;; --ref-text) REFTEXT="$2"; shift 2;; --speed) SPEED="$2"; shift 2;;
-    *) echo "unknown option $1" >&2; exit 2;;
+    --provider) PROV="$2";;
+    --ref) REF="$2"; PASS+=("$1" "$2");;
+    --ref-text) REFTEXT="$2"; PASS+=("$1" "$2");;
+    --instruct) INSTRUCT_GIVEN=1; PASS+=("$1" "$2");;
+    *) PASS+=("$1" "$2");;
   esac
+  shift 2
 done
-[ -z "$REF" ] || [ -n "$REFTEXT" ] || { echo "--ref needs --ref-text (the transcript of the reference clip)" >&2; exit 2; }
-URL=http://127.0.0.1:3900
-TEXT=$(grep -v '^\s*#' "$SCRIPT" | sed -E 's/^[^|]{1,40}\|\s*//' | tr '\n' ' ' | sed -E 's/\s+/ /g; s/\s+$//')
-echo "narrating ${#TEXT} characters, about $(echo "$TEXT" | wc -w | awk '{printf "%.0f", $1 / 2.6}') s expected (VoxCPM2 speaks about 2.6 words/s)"
+[ -z "$REF" ] || [ -n "$REFTEXT" ] || cv_die "--ref needs --ref-text (the exact words spoken in the reference clip)"
+[ -s "$SCRIPT" ] || cv_die "script file not found or empty: $SCRIPT"
 
-voicestudio-backend start >/dev/null
-# the startup preload can leave OmniVoice resident, and two engines do not fit in 12 GB
-curl -s -m 60 -X POST $URL/system/flush-memory >/dev/null || true
-
-ARGS=(--form-string "text=$TEXT" -F language=English -F "engine=$ENGINE" -F "seed=$SEED")
-[ -n "$SPEED" ] && ARGS+=(-F "speed=$SPEED")
+NAME="$(cv_resolve tts "$PROV")"
+SRC="$(cv_cfg_source tts)"; [ -z "$PROV" ] || SRC="--provider"
 if [ -n "$REF" ]; then
-  ARGS+=(-F "ref_audio=@$REF" --form-string "ref_text=$REFTEXT")
-else
-  ARGS+=(--form-string "instruct=$INSTRUCT")
+  case "$(cv_info tts "$NAME" clone)" in False|false) cv_die "provider '$NAME' cannot clone a voice (use voicestudio, or a command provider whose engine can)";; esac
 fi
-HDR=$(mktemp)
-CODE=$(curl -s -m 900 -D "$HDR" -o "$OUT" -w '%{http_code}' -X POST $URL/generate "${ARGS[@]}")
-if [ "$CODE" != "200" ]; then
-  echo "generate failed (HTTP $CODE): $(head -c 400 "$OUT")" >&2
-  echo "hint: 503 usually means another engine is holding VRAM: voicestudio-backend stop; start; retry" >&2
-  rm -f "$HDR"; exit 1
+if [ -n "$INSTRUCT_GIVEN" ]; then
+  case "$(cv_info tts "$NAME" design)" in False|false) cv_warn "provider '$NAME' ignores --instruct (it cannot design a voice)";; esac
 fi
-echo "ok: $OUT, $(grep -i x-audio-duration "$HDR" | tr -d '\r' | awk '{print $2}') s of audio in $(grep -i x-gen-time "$HDR" | tr -d '\r' | awk '{print $2}') s (seed $SEED)"
-rm -f "$HDR"
+
+PLAIN="$(mktemp)"; RAW="$(mktemp -u).wav"; trap 'rm -f "$PLAIN" "$RAW"' EXIT
+grep -v '^\s*#' "$SCRIPT" | sed -E 's/^[^|]{1,40}\|\s*//' | sed -E '/^\s*$/d' > "$PLAIN"
+WORDS="$(cv_words "$PLAIN")"; EXP="$(awk -v w="$WORDS" 'BEGIN{printf "%.1f", w / 2.6}')"
+echo "narrating $WORDS words (about ${EXP}s at 2.6 words/s) with provider '$NAME'${SRC:+ ($SRC)}" >&2
+
+bash "$(cv_provider_script tts "$NAME")" "$PLAIN" "$RAW" "${PASS[@]}"
+[ -s "$RAW" ] || cv_die "provider '$NAME' produced no audio"
+cv_wav48 "$RAW" "$OUT" || cv_die "provider '$NAME' wrote something ffmpeg cannot read as audio"
+DUR="$(cv_dur "$OUT")"
+awk -v d="$DUR" 'BEGIN{exit !(d > 0.3)}' || cv_die "narration is only ${DUR}s long: the provider produced (almost) nothing"
+if awk -v d="$DUR" -v e="$EXP" 'BEGIN{exit !(d < 0.4*e || d > 2.5*e)}'; then
+  cv_warn "narration is ${DUR}s but about ${EXP}s was expected for $WORDS words: check the voice, speed and text"
+fi
+echo "ok: $OUT, ${DUR}s, 48 kHz mono (provider $NAME)"

@@ -1,57 +1,50 @@
 #!/usr/bin/env bash
-# assemble.sh: FilmCraft mix + export.
-#   assemble.sh --video silent.mp4 [--voice narration.wav] [--music music.wav] --out final.mp4
-#               [--music-db -9] [--lufs -16] [--bitrate 16000] [--project edit.fcproj]
-# V1 = picture, A1 = narration, A2 = music (clip gain --music-db), exported H.264 + AAC normalised to --lufs.
-# The headless FilmCraft engine starts EMPTY and every `run` is a fresh session, so this does three runs:
-# import (learn item ids), build the sequence (learn clip ids), then the full job with gain + export.
+# assemble.sh: the mix-and-export dispatcher. Picture + narration + music -> one final mp4 (H.264 + AAC) at the target loudness.
+#   assemble.sh --video silent.mp4 [--voice narration.wav] [--music music.wav] --out final.mp4 [--provider NAME]
+#               [--music-db -9] [--lufs -16] [--bitrate 16000] [--project edit.proj]
+#               [--interchange edl|xml|fcpxml|otio|aaf|omf --interchange-out timeline.otio]
+# Provider order: --provider, env CRAFTVIDEO_ASSEMBLE, ./craftvideo.json, ~/.config/craftvideo/config.json, then filmcraft, ffmpeg.
+# --interchange writes the edited timeline for another editor (Resolve, Premiere, Final Cut, Kdenlive, Avid) and needs a provider
+# that supports it (filmcraft). The result is checked here for every provider: video and audio present, same length as the
+# picture, loudness near the target.
 set -euo pipefail
-VIDEO=""; VOICE=""; MUSIC=""; OUT=""; MDB=-9; LUFS=-16; BR=16000; PROJ=""
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+PROV=""; VIDEO=""; VOICE=""; MUSIC=""; OUT=""; LUFS=-16; IFMT=""; IOUT=""; PASS=()
 while [ $# -gt 0 ]; do
+  [ $# -ge 2 ] || cv_die "option $1 needs a value"
   case "$1" in
-    --video) VIDEO="$(realpath "$2")"; shift 2;; --voice) VOICE="$(realpath "$2")"; shift 2;;
-    --music) MUSIC="$(realpath "$2")"; shift 2;; --out) OUT="$(realpath -m "$2")"; shift 2;;
-    --music-db) MDB="$2"; shift 2;; --lufs) LUFS="$2"; shift 2;; --bitrate) BR="$2"; shift 2;;
-    --project) PROJ="$(realpath -m "$2")"; shift 2;; *) echo "unknown option $1" >&2; exit 2;;
-  esac
+    --provider) PROV="$2";;
+    --video) VIDEO="$2"; PASS+=("$1" "$2");; --voice) VOICE="$2"; PASS+=("$1" "$2");; --music) MUSIC="$2"; PASS+=("$1" "$2");;
+    --out) OUT="$2"; PASS+=("$1" "$2");; --lufs) LUFS="$2"; PASS+=("$1" "$2");;
+    --interchange) IFMT="$2"; PASS+=("$1" "$2");; --interchange-out) IOUT="$2"; PASS+=("$1" "$2");;
+    *) PASS+=("$1" "$2");;
+  esac; shift 2
 done
-[ -n "$VIDEO" ] && [ -n "$OUT" ] || { echo "usage: assemble.sh --video v.mp4 [--voice n.wav] [--music m.wav] --out final.mp4" >&2; exit 2; }
-[ -n "$PROJ" ] || PROJ="${OUT%.*}.fcproj"
-T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
-PATHS=("$VIDEO"); [ -n "$VOICE" ] && PATHS+=("$VOICE"); [ -n "$MUSIC" ] && PATHS+=("$MUSIC")
-JP=$(python3 -c 'import json,sys; print(json.dumps({"paths": sys.argv[1:]}))' "${PATHS[@]}")
-imp() { echo "{\"id\":\"file.import\",\"params\":$JP}"; }
-ids() { python3 -c 'import json,sys; print(" ".join(map(str, json.loads(sys.stdin.read().splitlines()[0])["result"]["items"])))' ; }
+[ -n "$VIDEO" ] && [ -n "$OUT" ] || cv_die "usage: assemble.sh --video silent.mp4 [--voice n.wav] [--music m.wav] --out final.mp4 [--provider NAME]"
+for f in "$VIDEO" "$VOICE" "$MUSIC"; do [ -z "$f" ] || [ -s "$f" ] || cv_die "input not found: $f"; done
+[ -z "$IFMT" ] || [ -n "$IOUT" ] || cv_die "--interchange needs --interchange-out FILE"
+NAME="$(cv_resolve assemble "$PROV")"
+if [ -n "$IFMT" ]; then
+  SUP="$(cv_info assemble "$NAME" interchange)"
+  case ",$SUP," in *",$IFMT,"*) ;; *) cv_die "provider '$NAME' cannot export '$IFMT' timelines (supports: ${SUP:-none}); rerun with --provider filmcraft for the hand-off";; esac
+fi
+echo "assembling with provider '$NAME' (voice $([ -n "$VOICE" ] && echo yes || echo no), music $([ -n "$MUSIC" ] && echo yes || echo no), target $LUFS LUFS)" >&2
+bash "$(cv_provider_script assemble "$NAME")" "${PASS[@]}"
+[ -s "$OUT" ] || cv_die "provider '$NAME' produced no file at $OUT"
+[ -z "$IFMT" ] || [ -s "$IOUT" ] || cv_die "provider '$NAME' did not write the $IFMT timeline to $IOUT"
 
-# run 0: item ids
-imp > "$T/0.jsonl"; read -r -a ITEM <<< "$(filmcraft-cli run "$T/0.jsonl" | ids)"
-VI=${ITEM[0]}; n=1
-[ -n "$VOICE" ] && { VOI=${ITEM[$n]}; n=$((n+1)); }; [ -n "$MUSIC" ] && MUI=${ITEM[$n]}
-
-place() {  # item track
-  echo "{\"id\":\"timeline.place\",\"params\":{\"item\":$1,\"track\":\"$2\",\"seconds\":0}}"
-}
-build() {
-  imp; echo "{\"id\":\"file.newSequence\",\"params\":{\"name\":\"$(basename "${OUT%.*}")\",\"fromItem\":$VI}}"
-  [ -n "$VOICE" ] && place "$VOI" A1
-  [ -n "$MUSIC" ] && place "$MUI" A2
-}
-# run 1: clip ids of the placed audio (picture comes with newSequence fromItem)
-build > "$T/1.jsonl"
-CLIPS=$(filmcraft-cli run "$T/1.jsonl" | python3 -c '
-import json, sys
-rows = [json.loads(l) for l in sys.stdin.read().splitlines() if l.startswith("{")]
-print(" ".join(str(c) for r in rows if r["id"] == "timeline.place" for c in r["result"]["clips"]))')
-read -r -a CLIP <<< "$CLIPS"
-{
-  build
-  if [ -n "$MUSIC" ]; then
-    MC=${CLIP[$(( ${#CLIP[@]} - 1 ))]}                          # music is placed last
-    echo "{\"id\":\"clip.audioGain\",\"params\":{\"clips\":[$MC],\"mode\":\"set\",\"db\":$MDB}}"
-  fi
-  echo "{\"id\":\"file.save\",\"params\":{\"path\":\"$PROJ\"}}"
-  echo "{\"id\":\"file.exportMedia\",\"params\":{\"path\":\"$OUT\",\"format\":\"h264\",\"bitrateKbps\":$BR,\"bitrateMode\":\"vbr1Pass\",\"loudnessLufs\":$LUFS,\"wait\":true}}"
-} > "$T/2.jsonl"
-filmcraft-cli run "$T/2.jsonl" | tee "$T/out.log" | tail -1 | cut -c1-240
-grep -q '"ok":false' "$T/out.log" && { echo "a FilmCraft command failed, see above" >&2; grep '"ok":false' "$T/out.log" >&2; exit 1; }
-echo "exported $OUT (project $PROJ)"
+# ---- enforce the output contract ----
+VS="$(ffprobe -v error -select_streams v -show_entries stream=index -of csv=p=0 "$OUT" | wc -l | tr -d ' ')"
+AS="$(ffprobe -v error -select_streams a -show_entries stream=index -of csv=p=0 "$OUT" | wc -l | tr -d ' ')"
+[ "$VS" -ge 1 ] || cv_die "provider '$NAME': the output has no video stream"
+if [ -n "$VOICE$MUSIC" ] && [ "$AS" -lt 1 ]; then cv_die "provider '$NAME': the output has no audio stream although voice/music were given"; fi
+PD="$(ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 "$VIDEO")"
+OD="$(ffprobe -v error -select_streams v:0 -show_entries stream=duration -of csv=p=0 "$OUT")"
+python3 -c 'import sys; sys.exit(0 if abs(float(sys.argv[1]) - float(sys.argv[2])) <= 0.1 else 1)' "$PD" "$OD" || cv_die "provider '$NAME': output picture is ${OD}s but the input picture is ${PD}s"
+LU="n/a"
+if [ "$AS" -ge 1 ]; then
+  LU="$(ffmpeg -hide_banner -nostats -i "$OUT" -vn -af ebur128 -f null - 2>&1 | grep -E '^\s+I:' | tail -1 | awk '{print $2}')"
+  python3 -c 'import sys; sys.exit(0 if abs(float(sys.argv[1]) - float(sys.argv[2])) <= 1.5 else 1)' "$LU" "$LUFS" \
+    || cv_warn "loudness is ${LU} LUFS, more than 1.5 LU from the ${LUFS} target (finish.sh will gate on this)"
+fi
+echo "ok: $OUT, video ${OD}s, loudness ${LU} LUFS (provider $NAME)"

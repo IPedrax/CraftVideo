@@ -6,7 +6,7 @@ set -euo pipefail
 IN="$(realpath "${1:?usage: finish.sh final.mp4 outdir [--poster-time 1.6] [--voice narration.wav]}")"; OUTDIR="$(realpath -m "${2:?outdir}")"; shift 2
 PT=1.6; VOICE=""
 while [ $# -gt 0 ]; do case "$1" in --poster-time) PT="$2"; shift 2;; --voice) VOICE="$(realpath "$2")"; shift 2;; *) echo "unknown option $1" >&2; exit 2;; esac; done
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; PY="${VIDEO_PY:-/mnt/ai/VoiceStudio/.venv/bin/python}"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"
 mkdir -p "$OUTDIR"
 FPS=$(ffprobe -v error -select_streams v:0 -show_entries stream=r_frame_rate -of csv=p=0 "$IN")
 ffmpeg -hide_banner -loglevel error -y -ss "$PT" -i "$IN" -frames:v 1 -q:v 2 "$OUTDIR/brag.jpg"

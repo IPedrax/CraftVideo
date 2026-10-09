@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# VoiceStudio backend, headless, loopback only (127.0.0.1:3900). Usage: voicestudio-backend start|stop|status|log
+# VOICESTUDIO_DIR = your VoiceStudio source checkout (default /mnt/ai/VoiceStudio); its .vs/ folder holds the log and pid.
+# --no-sync matters: a plain `uv run` re-syncs the lockfile and would remove the extra voxcpm package.
+V="${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}"; mkdir -p "$V/.vs"; PID=$V/.vs/backend.pid; LOG=$V/.vs/backend.log; URL=http://127.0.0.1:3900
+export UV_CACHE_DIR=$V/.vs/cache/uv
+up() { curl -fsS -m 3 $URL/system/info >/dev/null 2>&1; }
+case "${1:-status}" in
+  start)
+    up && { echo "already running"; exit 0; }
+    cd $V && setsid nohup uv run --no-sync uvicorn main:app --app-dir backend --host 127.0.0.1 --port 3900 >>$LOG 2>&1 &
+    echo $! >$PID
+    for _ in $(seq 1 90); do up && { echo "up (pid $(cat $PID)), log: $LOG"; exit 0; }; sleep 2; done
+    echo "not ready after 180s, see $LOG" >&2; exit 1 ;;
+  stop)
+    [ -f $PID ] && kill -- -"$(ps -o pgid= -p "$(cat $PID)" | tr -d ' ')" 2>/dev/null; rm -f $PID
+    pkill -f 'uvicorn main:app --app-dir backend' 2>/dev/null; echo stopped ;;
+  status) up && echo "running: $URL" || { echo "not running"; exit 1; } ;;
+  log) tail -n "${2:-40}" $LOG ;;
+  *) echo "usage: $0 start|stop|status|log" >&2; exit 2 ;;
+esac

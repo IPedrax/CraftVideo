@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>html-css-animation: CSS keyframes driven by seek(t)</title>
+<style>
+  html, body { margin: 0; background: #0a0a0b; overflow: hidden; }
+  #stage { width: 100vw; height: 100vh; position: relative; color: #f2f2f0; font-family: 'Big Shoulders Display', sans-serif; }
+  .box { position: absolute; left: 8vw; top: 38vh; width: 14vw; height: 14vw; background: #ff2e88;
+         animation: slide 2s cubic-bezier(.16, 1, .3, 1) both, spin 2s linear infinite; }
+  .word { position: absolute; left: 8vw; top: 12vh; font: 900 12vw/1 'Big Shoulders Display'; text-transform: uppercase;
+          animation: fade 1s ease-out 0.5s both; }
+  /* translate and rotate are separate properties, applied in that order, so the box slides and spins in place. With
+     transform: translateX() it would slide along the ROTATED axis and orbit off screen. */
+  @keyframes slide { from { translate: 0 0 } to { translate: 60vw 0 } }
+  @keyframes spin  { to { rotate: 360deg } }
+  @keyframes fade  { from { opacity: 0; transform: translateY(4vh) } to { opacity: 1; transform: none } }
+</style>
+<div id="stage"><div class="word">css keyframes</div><div class="box"></div></div>
+<script>
+  // CSS animations run on the browser's wall clock, which a frame-by-frame renderer must not depend on. The fix: take them
+  // over. Pause every animation and set its currentTime from t. The page below is still a pure function of t.
+  window.craftvideo = {
+    seek(t) {
+      for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; }
+      return document.fonts.ready;
+    },
+  };
+</script>

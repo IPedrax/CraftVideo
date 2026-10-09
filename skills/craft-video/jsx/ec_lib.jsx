@@ -1,7 +1,7 @@
 // ec_lib.jsx: scene helpers for EffectCraft's After Effects-style scripting. build.sh concatenates
 //   brand file + this file + your scenes file, so the brand globals (INK, ACCENT, DISP, MONO, M ...) exist here.
 // API (all times in seconds, all coordinates in px, text is baseline-left anchored):
-//   begin({name,w,h,dur,fps})  background()  scanbar(a,b)  footer(text,a,b)  finish()
+//   begin({name,w,h,dur,fps})  (any field left out follows the render spec, then 1920x1080 @ 30, 30 s)  background()  scanbar(a,b)  footer(text,a,b)  finish()
 //   txt(str,{x,y,size,font,color,a,b,[dx,dy,dur,out,tracking,leading,just,expr,name]})  -> layer
 //   rect(x,y,w,h,{fill,stroke,sw,a,b,[grow,linear,dx,dy,dur,name]})  -> layer (left-top anchored; grow = seconds to grow from the left)
 //   kicker(label,a,b)  panel(x,y,w,h,label,a,b)  chip(label,x,w,at,b)  underscore(textLayer,size,a,b)
@@ -9,8 +9,9 @@ function c(a) { return [a[0] / 255, a[1] / 255, a[2] / 255]; }
 function c4(a) { return [a[0] / 255, a[1] / 255, a[2] / 255, 1]; }
 var comp, W, H, DUR;
 function begin(o) {
-  W = o.w || 1920; H = o.h || 1080; DUR = o.dur || 30;
-  comp = app.project.items.addComp(o.name || "Main", W, H, 1, DUR, o.fps || 30);
+  var V = (typeof VIDEO !== "undefined") ? VIDEO : {};          // spec injected by build.sh from the render dispatcher
+  W = o.w || V.w || 1920; H = o.h || V.h || 1080; DUR = o.dur || V.dur || 30;
+  comp = app.project.items.addComp(o.name || "Main", W, H, 1, DUR, o.fps || V.fps || 30);
 }
 // ---------- helpers ----------
 function tr(l, n) { return l.property("ADBE Transform Group").property(n); }

@@ -1,0 +1,3 @@
+hook | This page draws itself from the narration cues.
+proof | Each line appears on its own sentence.
+close | Swap the renderer, keep the voice.

@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>html-hello: a craft-video HTML scene</title>
+<style>
+  html, body { margin: 0; background: #0a0a0b; overflow: hidden; }
+  #stage { position: relative; width: 100vw; height: 100vh; color: #f2f2f0; font-family: 'IBM Plex Mono', monospace;
+           background-image: linear-gradient(#141417 1px, transparent 1px), linear-gradient(90deg, #141417 1px, transparent 1px); background-size: 40px 40px; }
+  .line { position: absolute; left: 6.25vw; font: 900 13.5vw/0.9 'Big Shoulders Display', sans-serif; text-transform: uppercase; white-space: nowrap; }
+  .kicker { position: absolute; left: 6.25vw; top: 6vh; padding: 0.6vh 0.9vw; background: #f2f2f0; color: #0a0a0b; letter-spacing: 0.24em; font-size: 1.4vw; }
+  #bar { position: absolute; left: 0; top: 0; height: 6px; background: #ff2e88; }
+</style>
+<div id="stage"><div id="bar"></div><div class="kicker">HTML SCENE EXAMPLE</div></div>
+<script>
+  // The whole contract: window.craftvideo.seek(t). Draw the frame for time t as a PURE FUNCTION of t (no timers, no CSS
+  // transitions, no Date.now). The renderer calls seek() once per frame and screenshots the page.
+  const spec = window.__CV_SPEC || { width: 1920, height: 1080, fps: 30, duration: 6, timeline: null };
+  const cues = (spec.timeline && spec.timeline.sentences) || [{ label: "one", start: 0.4 }, { label: "two", start: 2.2 }, { label: "three", start: 4.2 }];
+  const clamp = (x) => Math.min(Math.max(x, 0), 1), easeOut = (f) => 1 - Math.pow(1 - clamp(f), 4);
+  const stage = document.getElementById("stage"), bar = document.getElementById("bar");
+  const lines = cues.map((c, i) => { const d = document.createElement("div"); d.className = "line"; d.textContent = c.label; stage.appendChild(d); return d; });
+  function render(t) {
+    bar.style.width = (clamp(t / spec.duration) * 100) + "vw";
+    cues.forEach((c, i) => {                                   // each line enters ON its narration cue
+      const e = easeOut((t - c.start) / 0.45), el = lines[i];
+      const active = t >= c.start && (i === cues.length - 1 || t < cues[i + 1].start);
+      el.style.top = (16 + i * 25) + "vh";
+      el.style.opacity = e; el.style.transform = `translateY(${(1 - e) * 5}vh)`;
+      el.style.color = active ? "#ff2e88" : "#f2f2f0";
+    });
+  }
+  window.craftvideo = { seek(t) { render(t); return document.fonts.ready; } };   // may return a promise
+</script>

@@ -5,7 +5,7 @@
 set -euo pipefail
 PROJ="${1:?usage: stills.sh project.ecproj comp \"t1 t2 ...\" [sheet.png] [cols]}"; COMP="${2:?comp name}"; TIMES="${3:?times}"
 SHEET="${4:-sheet.png}"; COLS="${5:-3}"
-PY="${VIDEO_PY:-/mnt/ai/VoiceStudio/.venv/bin/python}"
+PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 for t in $TIMES; do effectcraft-cli render-frame --comp "$COMP" --time "$t" --scale 0.4 --out "$T/still_$t.png" "$PROJ" >/dev/null 2>"$T/err" || { cat "$T/err" >&2; exit 1; }; done
 "$PY" - "$T" "$SHEET" "$COLS" $TIMES <<'EOF'
