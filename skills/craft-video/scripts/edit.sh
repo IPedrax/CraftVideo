@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # edit.sh: the edit dispatcher. Applies an edit decision list (edit.json from plan_edit.py, or one you wrote or changed) to the recording.
 #   edit.sh edit.json OUT.mp4 [--provider NAME] [--transcript transcript.json] [--caption-style box|plain|karaoke]
-#           [--interchange otio|edl --interchange-out FILE]
+#           [--title "A Proper Title"] [--interchange otio|edl --interchange-out FILE]
+# Name OUT after the video (ai-is-taking-games-apart.mp4, not edited.mp4). --title also writes it into the file's metadata (a lossless
+# stream copy, whatever the provider, chapters kept), which is what players and uploads show.
 # Provider order: --provider, env CRAFTVIDEO_EDIT, ./craftvideo.json, ~/.config/craftvideo/config.json, then ffmpeg, filmcraft.
 # The EDL needs only {source, segments}; edl.py fills in the rest from the recording.
 # Captions: if the EDL enables them and a transcript is given, they are remapped through the cuts, written next to OUT as .srt (sidecar)
@@ -11,10 +13,10 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 EDL="${1:?usage: edit.sh edit.json OUT.mp4 [--provider NAME] [--transcript T.json] [--interchange otio|edl --interchange-out F]}"; OUT="${2:?output file}"; shift 2
-PROV=""; TR=""; CSTYLE=""; IFMT=""; IOUT=""
+PROV=""; TR=""; CSTYLE=""; IFMT=""; IOUT=""; TITLE=""
 while [ $# -gt 0 ]; do
   [ $# -ge 2 ] || cv_die "option $1 needs a value"
-  case "$1" in --provider) PROV="$2";; --transcript) TR="$2";; --caption-style) CSTYLE="$2";; --interchange) IFMT="$2";; --interchange-out) IOUT="$2";; *) cv_die "unknown option $1";; esac; shift 2
+  case "$1" in --provider) PROV="$2";; --transcript) TR="$2";; --caption-style) CSTYLE="$2";; --interchange) IFMT="$2";; --interchange-out) IOUT="$2";; --title) TITLE="$2";; *) cv_die "unknown option $1";; esac; shift 2
 done
 [ -s "$EDL" ] || cv_die "edit decision list not found: $EDL"
 [ -z "$IFMT" ] || [ -n "$IOUT" ] || cv_die "--interchange needs --interchange-out FILE"
@@ -96,4 +98,8 @@ if bad:
     print("craft-video: the edit broke the output contract: " + "; ".join(bad), file=sys.stderr); sys.exit(1)
 print(f"ok: {out}, {dur:.2f}s from {e['stats']['source_duration']}s" + (f", {w}x{h}" if vs else ", audio only"))
 PY
+if [ -n "$TITLE" ]; then
+  ffmpeg -hide_banner -loglevel error -y -i "$OUT" -map 0 -c copy -metadata title="$TITLE" -movflags +faststart "$T/titled.${OUT##*.}" && mv "$T/titled.${OUT##*.}" "$OUT" || cv_die "could not write the title into $OUT"
+  echo "title: $TITLE" >&2
+fi
 if [ -n "$IFMT" ]; then "$CV_PY" "$CV_HERE/interchange.py" "$EDL" "$IOUT" --format "$IFMT" >&2; fi

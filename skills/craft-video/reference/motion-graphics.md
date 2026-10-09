@@ -104,7 +104,7 @@ example (strict quality wants colour recipes, lighting, local overrides) and wri
 ```bash
 bash $S/render.sh lowerthird.html lowerthird.mov --provider html --width 1920 --height 1080 --fps 30 --duration 3 --alpha 1
 # edit.json:  "overlays": [ { "type": "clip", "file": "/abs/lowerthird.mov", "start": 2.0, "x": 0, "y": 0 } ]
-bash $S/edit.sh edit.json edited.mp4
+bash $S/edit.sh edit.json the-video-title.mp4 --title "The Video Title"
 ```
 
 `--alpha 1` makes the page background transparent and encodes ProRes 4444 (so the output must be a `.mov`); the dispatcher refuses it for providers

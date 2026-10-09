@@ -1,6 +1,6 @@
 {
   "name": "craftvideo",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Make or edit video on your own machine. Make a narrated motion-graphics video from a topic (brag's storyboard, any TTS, renderer and editor), or edit a recording professionally (dead air and fillers out, clean levelled audio, captions, vertical reframing, OTIO/EDL hand-off), with 3D (Three.js, img2threejs models), WebGPU shaders, GSAP and transparent overlays for both. Swappable, contract-checked providers and measured QA gates.",
   "author": {
     "name": "IPedrax",

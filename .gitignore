@@ -10,7 +10,8 @@ __pycache__/
 *.py[cod]
 
 # Video work products: never commit renders, audio or per-video build files
-brag-output/
+# (each video lives in its own folder named after its title, outside this repo; these catch strays)
+work/
 *.ecproj
 *.fcproj
 *.build.jsx

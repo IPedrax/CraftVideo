@@ -6,23 +6,24 @@ dead air and filler words out, audio cleaned and levelled, captions burned in, d
 
 ```
 recording ──analyze.py──▶ analysis.json ──┐
-          └─transcribe.sh─▶ transcript.json ─┴─plan_edit.py─▶ edit.json ──(review, adjust)──▶ edit.sh ──▶ edited.mp4 (+ .srt)
+          └─transcribe.sh─▶ transcript.json ─┴─plan_edit.py─▶ edit.json ──(review, adjust)──▶ edit.sh ──▶ the titled mp4 (+ .srt)
                                                                                                 │
                                               qa_edit.py (gates) · review_edit.py (what was cut) ◀┘   --interchange otio|edl for another editor
 ```
 
-`S="${CLAUDE_SKILL_DIR}/scripts"`, `PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"`. Work in `./edit-output/`.
+`S="${CLAUDE_SKILL_DIR}/scripts"`, `PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"`. Work in one folder named after the video, `./<title-slug>/` (here `D=how-the-edit-works; mkdir -p $D`).
 
 ## The steps
 
 ```bash
-$PY $S/analyze.py rec.mp4 edit-output/analysis.json                          # speech vs silence, loudness, noise floor, black/frozen spans
-bash $S/transcribe.sh rec.mp4 edit-output/transcript.json --language en       # word timings (optional, but needed for fillers and captions)
-$PY $S/plan_edit.py --source rec.mp4 --analysis edit-output/analysis.json --transcript edit-output/transcript.json \
-    --out edit-output/edit.json --style talking-head
-bash $S/edit.sh edit-output/edit.json edit-output/edited.mp4 --transcript edit-output/transcript.json
-$PY $S/qa_edit.py edit-output/edit.json edit-output/edited.mp4 --srt edit-output/edited.srt
-$PY $S/review_edit.py edit-output/edit.json edit-output/edited.mp4 edit-output/review --transcript edit-output/transcript.json
+$PY $S/analyze.py rec.mp4 $D/analysis.json                          # speech vs silence, loudness, noise floor, black/frozen spans
+bash $S/transcribe.sh rec.mp4 $D/transcript.json --language en       # word timings (optional, but needed for fillers and captions)
+$PY $S/plan_edit.py --source rec.mp4 --analysis $D/analysis.json --transcript $D/transcript.json \
+    --out $D/edit.json --style talking-head
+V=$D/$D.mp4          # name the output after the video's title
+bash $S/edit.sh $D/edit.json $V --title "How The Edit Works" --transcript $D/transcript.json
+$PY $S/qa_edit.py $D/edit.json $V --srt ${V%.mp4}.srt
+$PY $S/review_edit.py $D/edit.json $V $D/review --transcript $D/transcript.json
 ```
 
 1. **Analyze.** Speech is decided against *this recording's* noise floor (threshold = floor + 35% of the way to the speech level, clamped to
@@ -35,7 +36,8 @@ $PY $S/review_edit.py edit-output/edit.json edit-output/edited.mp4 edit-output/r
    `--reframe none|crop|blur`, `--stabilize`.
 4. **Review the plan before applying it.** Open `edit.json`: `stats.filler_cuts` lists every word it will cut, `segments` is exactly what
    stays. Drop a segment or move a boundary by editing the JSON; there is nothing hidden.
-5. **Apply** with `edit.sh`. It resolves a provider, builds the captions, warns about anything the provider cannot do, runs the edit,
+5. **Apply** with `edit.sh`. Name the output after the video and pass `--title`: it is written into the file's metadata by a lossless stream copy
+   (chapters kept). It resolves a provider, builds the captions, warns about anything the provider cannot do, runs the edit,
    then enforces the output contract (length = kept segments within 2 frames, size, fps, audio present).
 6. **Gate and look.** `qa_edit.py` fails the edit on length, size, fps, loudness (EDL target +/- 1 LU), true peak above -1 dBFS, A/V length
    skew over 40 ms, and a broken caption sidecar; it warns on a click at a cut or a black stretch. `review_edit.py` writes `review.md`
@@ -84,7 +86,7 @@ nothing clicks.
 
 Captions are built from the transcript, **remapped through the cuts**: a word in a removed span disappears, a word cut in half is clipped.
 Cues break at sentence ends, long pauses and at the cuts themselves, never overlap, and stay on screen at least 0.6 s. The same cues are
-written as a sidecar `.srt` next to the output (`edited.srt`), so other editors and players can use them. Portrait output gets bigger text,
+written as a sidecar `.srt` next to the output (same name, `.srt`), so other editors and players can use them. Portrait output gets bigger text,
 26-character lines and a margin above the app-UI zone. Place lower thirds above the bottom 20% so they do not sit under the captions.
 
 ## Providers (`edit`)

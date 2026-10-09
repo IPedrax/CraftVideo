@@ -23,7 +23,9 @@ research -> storyboard (brag) -> script -> narrate -> tighten (timeline.json) ->
               narrate.sh = tts provider · render.sh = render provider · assemble.sh = assemble provider
 ```
 
-`S="${CLAUDE_SKILL_DIR}/scripts"` below. Work in `./brag-output/work/` (brag's layout; deliverables go in `./brag-output/`).
+`S="${CLAUDE_SKILL_DIR}/scripts"` below. Everything for one video lives in **one folder named after its title**, `./<title-slug>/` (for example `./ai-is-taking-games-apart/`):
+deliverables in it, working files in its `work/`. Choose the title in step 2, then `mkdir -p <title-slug>/work && cd <title-slug>` and run every command below from
+inside that folder. There is no shared output folder.
 `PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"` (any python with numpy, soundfile, PIL works).
 Worked examples with every input file: `examples/decomp-30s/` (EffectCraft + VoiceStudio + FilmCraft), `examples/html-hello/` (HTML scene), and for the
 motion layer `three-3d`, `img2threejs-bridge`, `webgpu-shader`, `gsap-timeline`, `overlay-lowerthird` (see `examples/README.md`).
@@ -59,7 +61,9 @@ All of it, with the contracts and recipes, is in `reference/providers.md`. Read 
 6. **A client's project is the client's to post**; for client work the video is a draft for approval. **Never post or upload**: deliver files.
 7. **One GPU engine at a time** on a 12 GB card: stop the VoiceStudio backend when done (`bash $S/voicestudio-backend stop`).
 8. `dryrun` is for previews only. If a deliverable's voice came from `dryrun`, it is not done.
-9. **A recording belongs to the person in it.** Edit only with their say-so; a hosted transcribe provider uploads the audio, so use one only with consent;
+9. **Name deliverables after the video.** A real title, in the file name and in the file's metadata: never `brag.mp4`, `final.mp4` or `edited.mp4`. One folder
+   per video, named after its title: never a shared `brag-output/` or `output/` folder.
+10. **A recording belongs to the person in it.** Edit only with their say-so; a hosted transcribe provider uploads the audio, so use one only with consent;
    never cut words so that someone seems to say something they did not (read `review.md`); captions come from the real transcript, never invented.
 
 ## Mode A: make a video from a topic
@@ -71,8 +75,9 @@ tell the user what will be used; ask only when the choice matters (a hosted TTS,
 **1. Inspect.** Gather the material (research for a news or explainer topic; the code or site for a product). Answer first: what is it in
 one sentence, who is it for, the most surprising true thing, the one-line caption. Fetch primary sources; record each claim with link and date.
 
-**2. Plan (brag).** Read brag's playbook if OmniSkill is installed (path in `reference/storyboard.md`), then write `brag-output/brag-plan.md`
-from the template there: angle, tone (default `polished` for factual topics), storyboard table, claims table. Hook first.
+**2. Plan (brag) and title.** Choose the video's **title** now: what a viewer would call it, 3 to 8 words in title case, never "brag", "final" or "video".
+It names the folder and the files. Read brag's playbook if OmniSkill is installed (path in `reference/storyboard.md`), then write `plan.md` in the
+video's folder from the template there: angle, tone (default `polished` for factual topics), storyboard table, claims table. Hook first.
 
 **3. Script.** One sentence per line in `work/script.txt`, optional `label | sentence`. About 2.6 words per second (30 s is 75 to 80 words).
 Spell numbers as they are said ("eighty-four").
@@ -119,13 +124,14 @@ bash $S/assemble.sh --video work/silent.mp4 --voice work/narration.wav --music w
 Music sits at -9 dB, mix normalised to -16 LUFS. Hand-off to another editor: add `--provider filmcraft --interchange otio --interchange-out work/edit.otio`
 (formats edl, xml, fcpxml, otio, aaf, omf); media is referenced by absolute path.
 
-**10. Finish and QA.** `bash $S/finish.sh work/final.mp4 brag-output --poster-time 1.6 --voice work/narration.wav` bakes the poster into frame 0
-(`brag.jpg`, `brag.mp4`) and gates loudness (-16 +/- 1 LUFS), peak (<= -1 dBFS), narration sync (<= 40 ms) and poster-equals-frame-0.
-The gates are provider-independent. A FAIL means fix and re-run, not ship.
+**10. Finish and QA.** `bash $S/finish.sh work/final.mp4 . --title "AI Is Taking Games Apart" --poster-time 1.6 --voice work/narration.wav` (run inside the
+video's folder, so `.` is that folder) bakes the poster into frame 0, names the files after the title (`ai-is-taking-games-apart.mp4` and `.jpg`), writes the title into the video's metadata, and gates loudness
+(-16 +/- 1 LUFS), peak (<= -1 dBFS), narration sync (<= 40 ms), poster-equals-frame-0 and the embedded title. `--title` is required; `--filename`
+overrides only the file name. The gates are provider-independent. A FAIL means fix and re-run, not ship.
 
-**11. Deliver.** Write `brag-output/share-copy.txt` (1 to 3 sentences, specific, postable as-is, includes the AI-voiceover disclosure; never
-"excited to share"). Fill the delivery checks in `brag-plan.md`, naming the providers used. Stop the VoiceStudio backend if it ran. Send
-`brag.mp4` (SendUserFile), say where everything is, one sentence on the creative angle, offer a re-roll, another tone or a vertical version.
+**11. Deliver.** Write `share-copy.txt` in the video's folder (1 to 3 sentences, specific, postable as-is, includes the AI-voiceover disclosure; never
+"excited to share"). Fill the delivery checks in `plan.md`, naming the providers used. Stop the VoiceStudio backend if it ran. Send
+the titled mp4 (SendUserFile), say where everything is, one sentence on the creative angle, offer a re-roll, another tone or a vertical version.
 Say plainly what you could not verify (you cannot hear or watch the result).
 
 ## Mode B: edit a recording
@@ -133,20 +139,20 @@ Say plainly what you could not verify (you cannot hear or watch the result).
 Full playbook, `edit.json` schema, style presets, traps and measured results: `reference/edit.md`. In short:
 
 ```bash
-mkdir -p edit-output
-$PY $S/analyze.py rec.mp4 edit-output/analysis.json
-bash $S/transcribe.sh rec.mp4 edit-output/transcript.json --language en          # needed for fillers and captions
-$PY $S/plan_edit.py --source rec.mp4 --analysis edit-output/analysis.json --transcript edit-output/transcript.json --out edit-output/edit.json --style talking-head
-bash $S/edit.sh edit-output/edit.json edit-output/edited.mp4 --transcript edit-output/transcript.json     # + --interchange otio --interchange-out FILE for another editor
-$PY $S/qa_edit.py edit-output/edit.json edit-output/edited.mp4 --srt edit-output/edited.srt
-$PY $S/review_edit.py edit-output/edit.json edit-output/edited.mp4 edit-output/review --transcript edit-output/transcript.json
+D=how-the-edit-works; mkdir -p $D; V=$D/$D.mp4        # one folder per video, and the output named after the video's title, not edited.mp4
+$PY $S/analyze.py rec.mp4 $D/analysis.json
+bash $S/transcribe.sh rec.mp4 $D/transcript.json --language en          # needed for fillers and captions
+$PY $S/plan_edit.py --source rec.mp4 --analysis $D/analysis.json --transcript $D/transcript.json --out $D/edit.json --style talking-head
+bash $S/edit.sh $D/edit.json $V --title "How The Edit Works" --transcript $D/transcript.json     # + --interchange otio --interchange-out FILE
+$PY $S/qa_edit.py $D/edit.json $V --srt ${V%.mp4}.srt
+$PY $S/review_edit.py $D/edit.json $V $D/review --transcript $D/transcript.json
 ```
 
 1. Pick the style from what the recording is (`talking-head`, `screen`, `podcast`, `raw`). Ask only if it is unclear; say what you chose.
 2. **Read `edit.json` before applying it**: `stats.filler_cuts` is every word it will cut, `segments` is what stays. Adjust the JSON, not the script.
 3. After the edit, **read `review/review.md`** (the words removed at every cut) and **look at `review/cuts.jpg`** (before and after each cut). Fix and
    re-apply until nothing real was cut and no cut jumps oddly. `qa_edit.py` must pass: a FAIL means fix, not ship.
-4. Deliver `edited.mp4` and the `.srt`; say which provider cut it and what that provider does not do. You cannot watch or hear it: say so.
+4. Deliver the titled mp4 and its `.srt`; say which provider cut it and what that provider does not do. You cannot watch or hear it: say so.
 
 ## Motion graphics and 3D (both modes)
 
@@ -166,7 +172,7 @@ video on one backend (GPU or software, not both). The renderer warns if a scene 
 
 ## Quality gates (all must hold)
 
-Mode A: frames = fps x seconds · LUFS -16 +/- 1, peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · every claim in the claims table · sources on the
+Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1, peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · every claim in the claims table · sources on the
 end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent.
 Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer.
 

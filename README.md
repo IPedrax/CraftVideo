@@ -41,7 +41,7 @@ Built for **Claude Code**. Developed and tested on Linux with an NVIDIA GPU (see
 | Review | contact sheet of stills for every scene and mid-transition, before the full render | `render.sh --stills` |
 | Score | generated music that follows the scene cuts and ducks under the voice | [`synth_music.py`](skills/craft-video/scripts/synth_music.py) |
 | Mix | picture + voice + music to one mp4 at the target loudness, optional editor timeline | [`assemble.sh`](skills/craft-video/scripts/assemble.sh) |
-| Finish | poster baked into frame 0, then the QA gates | [`finish.sh`](skills/craft-video/scripts/finish.sh) |
+| Finish | poster baked into frame 0, the file named after the video's title and carrying it in its metadata, then the QA gates | [`finish.sh`](skills/craft-video/scripts/finish.sh) |
 
 ### Edit a recording
 

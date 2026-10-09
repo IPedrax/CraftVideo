@@ -41,7 +41,7 @@ brag draws frames as a pure function of time and plans scene durations on paper.
 - Leave the last 0.8 to 1 s as a held end card, and give the narration 0.4 s of lead-in.
 - 2.6 words per second is VoxCPM2's natural pace: 75 to 80 words is about 30 s. Count before you generate.
 
-## brag-plan.md template (write it to `brag-output/brag-plan.md`)
+## plan.md template (write it to `plan.md` in the video's folder, see SKILL.md)
 
 ```
 # brag plan: <topic> (<length> s)
