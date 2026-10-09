@@ -1,0 +1,62 @@
+{
+  "sentences": [
+    {
+      "label": "hook",
+      "start": 0.4,
+      "end": 1.942
+    },
+    {
+      "label": "reveal",
+      "start": 2.202,
+      "end": 6.89
+    },
+    {
+      "label": "days84",
+      "start": 7.15,
+      "end": 9.288
+    },
+    {
+      "label": "days596",
+      "start": 9.488,
+      "end": 11.804
+    },
+    {
+      "label": "experts",
+      "start": 12.064,
+      "end": 14.518
+    },
+    {
+      "label": "melee",
+      "start": 14.778,
+      "end": 20.999
+    },
+    {
+      "label": "split",
+      "start": 21.259,
+      "end": 26.084
+    },
+    {
+      "label": "tools",
+      "start": 26.404,
+      "end": 27.354
+    },
+    {
+      "label": "fight",
+      "start": 27.554,
+      "end": 29.15
+    }
+  ],
+  "speech_end": 29.15,
+  "total": 30.0,
+  "raw_total": 29.6,
+  "breaks_used_raw": [
+    1.54,
+    6.72,
+    9.21,
+    11.86,
+    14.69,
+    21.17,
+    26.41,
+    27.71
+  ]
+}

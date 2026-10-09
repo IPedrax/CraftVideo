@@ -1,0 +1,10 @@
+# One sentence per line. "label | sentence" (the label becomes the key in timeline.json). Lines starting with # are ignored.
+hook | AI is taking games apart.
+reveal | Decompilation turns machine code back into source that rebuilds the exact same binary.
+days84 | Snowboard Kids took eighty-four days.
+days596 | Its sequel took five hundred ninety-six.
+experts | AI helped, but so did experts and tooling.
+melee | Super Smash Bros. Melee hit one hundred percent after six years, with AI helping close the last stretch.
+split | The scene is split: one port developer calls AI-made ports a race to the bottom.
+tools | The tools are here.
+fight | The fight is over how to use them.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "craftvideo",
+  "owner": {
+    "name": "IPedrax",
+    "email": "pedro.medeiros@ipedrax.com.br"
+  },
+  "metadata": {
+    "description": "CraftVideo: a narrated 30-second motion-graphics video from a topic, using brag's storyboard and a fully local suite for the rest."
+  },
+  "plugins": [
+    {
+      "name": "craftvideo",
+      "source": "./",
+      "category": "media",
+      "description": "Research, storyboard, narrate (VoiceStudio), animate (EffectCraft), score (generated), mix and export (FilmCraft), then gate on loudness, sync and poster. Ships tested scripts and a worked example."
+    }
+  ]
+}

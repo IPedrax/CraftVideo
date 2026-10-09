@@ -1,0 +1,21 @@
+{
+  "name": "craftvideo",
+  "version": "1.0.0",
+  "description": "Make a short narrated motion-graphics video end to end on your own machine: brag's storyboard, VoiceStudio narration, EffectCraft visuals, a generated soundtrack, FilmCraft mix and export, with measured QA gates.",
+  "author": {
+    "name": "IPedrax",
+    "email": "pedro.medeiros@ipedrax.com.br"
+  },
+  "license": "MIT",
+  "keywords": [
+    "video",
+    "motion-graphics",
+    "narration",
+    "tts",
+    "storyboard",
+    "effectcraft",
+    "filmcraft",
+    "voicestudio",
+    "brag"
+  ]
+}
