@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>webgpu-shader: a WGSL fragment shader as a craft-video background</title>
+<style>
+  html, body { margin: 0; background: #0a0a0b; overflow: hidden; } canvas { display: block; }
+  #ui { position: fixed; inset: 0; pointer-events: none; color: #f2f2f0; font-family: 'IBM Plex Mono', monospace; }
+  #kicker { position: absolute; left: 6.25vw; top: 6vh; padding: 0.6vh 0.9vw; background: #f2f2f0; color: #0a0a0b; letter-spacing: 0.24em; font-size: 1.4vw; }
+  #title { position: absolute; left: 6.25vw; bottom: 9vh; font: 900 9vw/0.92 'Big Shoulders Display', 'Arial Narrow', sans-serif; text-transform: uppercase; }
+</style>
+<div id="ui"><div id="kicker">WEBGPU SHADER EXAMPLE</div><div id="title"></div></div>
+<canvas id="c"></canvas>
+<script type="module">
+  // Raw WebGPU, no library. The shader is a pure function of (uv, t), so seek(t) is reproducible.
+  const spec = window.__CV_SPEC || { width: 1280, height: 720, fps: 30, duration: 6, timeline: null };
+  const cues = (spec.timeline && spec.timeline.sentences) || [{ label: "hook", start: 0.4 }, { label: "proof", start: 2.4 }, { label: "close", start: 4.4 }];
+  const canvas = document.getElementById("c"); canvas.width = spec.width; canvas.height = spec.height;
+  const out = canvas.getContext("2d");
+  // A hybrid-GPU machine returns null for a bare requestAdapter(), so ask for the fast one and fall back to software WebGPU (slow but works).
+  const adapter = navigator.gpu && (await navigator.gpu.requestAdapter({ powerPreference: "high-performance" }) || await navigator.gpu.requestAdapter({ forceFallbackAdapter: true }));
+  if (!adapter) throw new Error("no WebGPU adapter available in this Chromium");
+  const device = await adapter.requestDevice(), W = spec.width, H = spec.height, format = "rgba8unorm";
+  // Headless Chromium does not hand a WebGPU swap chain to the screenshot (the canvas reads back empty), so this scene never presents:
+  // it renders into an offscreen texture, copies that into a buffer, and paints the pixels into a plain 2D canvas. Deterministic, any mode.
+  const target = device.createTexture({ size: [W, H], format, usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+  const bytesPerRow = Math.ceil(W * 4 / 256) * 256, readback = device.createBuffer({ size: bytesPerRow * H, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+  const module = device.createShaderModule({ code: /* wgsl */ `
+    struct U { t: f32, cue: f32, res: vec2f };
+    @group(0) @binding(0) var<uniform> u: U;
+    @vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+      var p = array<vec2f, 3>(vec2f(-1, -1), vec2f(3, -1), vec2f(-1, 3)); return vec4f(p[i], 0, 1);
+    }
+    // integer hash, not the usual fract(sin(...)): sin() precision differs between GPUs and the software path, integer maths does not
+    fn hash(p: vec2f) -> f32 {
+      var h = bitcast<u32>(i32(p.x)) * 374761393u + bitcast<u32>(i32(p.y)) * 668265263u;
+      h = (h ^ (h >> 13u)) * 1274126177u; h = h ^ (h >> 16u); return f32(h) / 4294967295.0;
+    }
+    fn noise(p: vec2f) -> f32 { let i = floor(p); let f = fract(p); let w = f * f * (3.0 - 2.0 * f);
+      return mix(mix(hash(i), hash(i + vec2f(1, 0)), w.x), mix(hash(i + vec2f(0, 1)), hash(i + vec2f(1, 1)), w.x), w.y); }
+    @fragment fn fs(@builtin(position) fc: vec4f) -> @location(0) vec4f {
+      let uv = fc.xy / u.res; let p = (uv - 0.5) * vec2f(u.res.x / u.res.y, 1.0) * 3.2;
+      var q = p; var a = 0.0; var amp = 0.5;
+      for (var k = 0; k < 5; k++) { a += amp * noise(q + vec2f(u.t * 0.25, -u.t * 0.18) * f32(k + 1) * 0.6); q = q * 2.02 + 7.3; amp *= 0.5; }
+      let d = abs(fract(a * 7.0 + u.cue * 0.5) - 0.5);
+      let ridge = smoothstep(0.455, 0.5, d);                                                   // thin contour lines of the noise field
+      let base = vec3f(0.039, 0.039, 0.043);                                                  // brand black
+      let pink = vec3f(1.0, 0.18, 0.53);
+      let glow = pow(a, 3.0) * 0.55;
+      return vec4f(base + pink * (ridge * (0.55 + 0.45 * u.cue) + glow * 0.4), 1.0);
+    }` });
+  const pipeline = device.createRenderPipeline({ layout: "auto", vertex: { module, entryPoint: "vs" }, fragment: { module, entryPoint: "fs", targets: [{ format }] } });
+  const ubuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const bind = device.createBindGroup({ layout: pipeline.getBindGroupLayout(0), entries: [{ binding: 0, resource: { buffer: ubuf } }] });
+  const title = document.getElementById("title"), img = out.createImageData(W, H);
+  window.craftvideo = { async seek(t) {
+    const idx = cues.findLastIndex((c) => t >= c.start), cue = idx < 0 ? 0 : idx;
+    device.queue.writeBuffer(ubuf, 0, new Float32Array([t, cue, W, H]));
+    const enc = device.createCommandEncoder(), pass = enc.beginRenderPass({ colorAttachments: [{ view: target.createView(), loadOp: "clear", storeOp: "store", clearValue: [0, 0, 0, 1] }] });
+    pass.setPipeline(pipeline); pass.setBindGroup(0, bind); pass.draw(3); pass.end();
+    enc.copyTextureToBuffer({ texture: target }, { buffer: readback, bytesPerRow }, [W, H]); device.queue.submit([enc.finish()]);
+    await readback.mapAsync(GPUMapMode.READ);
+    const src = new Uint8Array(readback.getMappedRange());
+    for (let y = 0; y < H; y++) img.data.set(src.subarray(y * bytesPerRow, y * bytesPerRow + W * 4), y * W * 4);
+    readback.unmap(); out.putImageData(img, 0, 0);
+    title.textContent = idx < 0 ? "" : cues[idx].label;
+  } };
+</script>

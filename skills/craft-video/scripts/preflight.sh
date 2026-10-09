@@ -48,6 +48,29 @@ case "${CHOSEN[render]:-}" in
       grep -qi "$f" <<<"$FONTS" && ok "$f" || warn "$f not installed: see reference/effectcraft-scripting.md > Fonts (open-licensed, from the google/fonts repo)"
     done;;
 esac
+if [ "${CHOSEN[edit]:-}" = ffmpeg ]; then
+  echo "editing (ffmpeg)"
+  FILT="$(ffmpeg -hide_banner -filters 2>/dev/null)"
+  for f in loudnorm afftdn acompressor sidechaincompress ass drawtext; do
+    grep -qE " $f " <<<"$FILT" && ok "ffmpeg filter $f" || warn "this ffmpeg has no '$f' filter: the edit provider needs it (loudness, denoise, compression, ducking, captions, titles)"
+  done
+  grep -qE " vidstabdetect " <<<"$FILT" && ok "ffmpeg filter vidstab (stabilise)" || info "no vidstab: the stabilize option will fail (optional)"
+  grep -q prores_ks <<<"$(ffmpeg -hide_banner -encoders 2>/dev/null)" && ok "prores_ks (transparent overlays)" || info "no prores_ks encoder: --alpha overlays will fail (optional)"
+fi
+if [ "${CHOSEN[transcribe]:-}" = faster-whisper ]; then
+  echo "transcription (faster-whisper)"
+  info "model ${WHISPER_MODEL:-small}; it must already be in the cache or CRAFTVIDEO_ALLOW_DOWNLOAD=1 lets it fetch one"
+  command -v nvidia-smi >/dev/null && info "GPU present: runs on it (a 30 s clip takes about a second); otherwise CPU" || info "no GPU: CPU transcription is several times slower than real time on the larger models"
+fi
+if cv_usable render html; then
+  echo "motion graphics (html render)"
+  T3="${THREE_DIR:-$HOME/.local/share/craftvideo/three}"
+  [ -f "$T3/build/three.module.js" ] && ok "three.js $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$T3/package.json" 2>/dev/null) at $T3" \
+    || info "three.js not installed: run scripts/get_three.sh for 3D scenes (2D, GSAP, CSS and WebGPU scenes do not need it)"
+  { command -v bun >/dev/null || command -v esbuild >/dev/null; } && ok "bundler (bun/esbuild) for TypeScript models such as img2threejs output" || info "no bun or esbuild: only needed to bundle TypeScript models"
+  [ -x /usr/bin/chromium ] || [ -n "${CRAFTVIDEO_CHROMIUM:-}" ] && ok "full Chromium (WebGPU and proprietary codecs work)" || info "using Playwright's bundled Chromium: no WebGPU"
+  command -v nvidia-smi >/dev/null && info "GPU present: render 3D and shader scenes with --gpu auto (software WebGL is the default and the slow path)"
+fi
 echo
 [ $fail -eq 0 ] && echo "preflight passed" || echo "preflight FAILED"
 exit $fail

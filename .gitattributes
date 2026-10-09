@@ -6,7 +6,7 @@
 *.sh  text eol=lf
 *.svg text eol=lf
 
-# Binary assets — never apply line-ending conversion.
+# Binary assets: never apply line-ending conversion.
 *.png  binary
 *.jpg  binary
 *.jpeg binary

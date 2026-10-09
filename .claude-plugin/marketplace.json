@@ -6,14 +6,14 @@
     "email": "pedro.medeiros@ipedrax.com.br"
   },
   "metadata": {
-    "description": "CraftVideo: narrated motion-graphics video from a topic. brag's storyboard, then whichever TTS, renderer and editor you have, behind swappable providers with contract checks and QA gates."
+    "description": "CraftVideo: make a narrated motion-graphics video from a topic, or edit a recording professionally, with 3D and motion graphics for both. Swappable providers with contract checks and QA gates."
   },
   "plugins": [
     {
       "name": "craftvideo",
       "source": "./",
       "category": "media",
-      "description": "Research, storyboard, narrate, animate, score, mix and export, then gate on loudness, sync and poster. Voice, picture and mix are swappable providers (VoiceStudio or any OpenAI-compatible or CLI TTS; EffectCraft, HTML or any renderer; FilmCraft, ffmpeg or any editor) with a conformance suite and editor timeline hand-off."
+      "description": "Make (research, storyboard, narrate, animate, score, mix, export) or edit (analyze, transcribe, cut dead air and fillers, clean and level audio, caption, reframe), with Three.js 3D, img2threejs models, WebGPU shaders, GSAP and transparent overlays. Voice, picture, mix, transcription and editing are swappable providers (VoiceStudio, EffectCraft, FilmCraft, ffmpeg, faster-whisper, HTML, OpenAI-compatible and command-line tools) with a conformance suite and editor timeline hand-off."
     }
   ]
 }

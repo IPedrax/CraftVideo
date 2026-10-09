@@ -1,25 +1,33 @@
 {
   "name": "craftvideo",
-  "version": "1.1.0",
-  "description": "Make a short narrated motion-graphics video from a topic: brag's storyboard, then any TTS, renderer and editor behind swappable, contract-checked providers (VoiceStudio, EffectCraft, FilmCraft, ffmpeg, HTML, OpenAI-compatible and command-line tools), a generated soundtrack and measured QA gates.",
+  "version": "1.2.0",
+  "description": "Make or edit video on your own machine. Make a narrated motion-graphics video from a topic (brag's storyboard, any TTS, renderer and editor), or edit a recording professionally (dead air and fillers out, clean levelled audio, captions, vertical reframing, OTIO/EDL hand-off), with 3D (Three.js, img2threejs models), WebGPU shaders, GSAP and transparent overlays for both. Swappable, contract-checked providers and measured QA gates.",
   "author": {
     "name": "IPedrax",
     "email": "pedro.medeiros@ipedrax.com.br"
   },
   "license": "MIT",
   "keywords": [
+    "3d",
     "adapters",
     "brag",
+    "captions",
+    "editing",
     "effectcraft",
     "ffmpeg",
     "filmcraft",
+    "gsap",
     "html",
+    "img2threejs",
     "motion-graphics",
     "narration",
     "providers",
     "storyboard",
+    "threejs",
+    "transcription",
     "tts",
     "video",
-    "voicestudio"
+    "voicestudio",
+    "webgpu"
   ]
 }

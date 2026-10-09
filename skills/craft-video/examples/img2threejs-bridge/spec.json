@@ -1,0 +1,120 @@
+{
+ "targetName": "Cart",
+ "targetId": "cart",
+ "schemaVersion": "2.1",
+ "suitability": "pass",
+ "coordinateFrame": {
+  "front": "+Z",
+  "up": "+Y",
+  "scaleReference": "unit"
+ },
+ "silhouette": {
+  "boundingShape": "slab",
+  "symmetry": "bilateral"
+ },
+ "proceduralStrategy": [
+  "blockout"
+ ],
+ "materials": [
+  {
+   "id": "plastic",
+   "name": "Plastic",
+   "baseColor": "#35353c",
+   "roughness": {
+    "base": 0.45
+   },
+   "metalness": {
+    "base": 0.2
+   },
+   "textureless": {
+    "declared": true,
+    "evidence": [
+     "authored from scratch, no reference image"
+    ]
+   }
+  },
+  {
+   "id": "accent",
+   "name": "Accent",
+   "baseColor": "#ff2e88",
+   "roughness": {
+    "base": 0.4
+   },
+   "metalness": {
+    "base": 0.0
+   },
+   "textureless": {
+    "declared": true,
+    "evidence": [
+     "flat brand colour"
+    ]
+   }
+  }
+ ],
+ "buildPasses": [
+  {
+   "id": "blockout",
+   "acceptance": []
+  }
+ ],
+ "componentTree": [
+  {
+   "id": "body",
+   "name": "Body",
+   "level": "macro",
+   "role": "body",
+   "primitive": "box",
+   "topologyClass": "continuous-sculpt",
+   "topologyRationale": "slab",
+   "parent": null,
+   "material": "plastic",
+   "dimensions": {
+    "width": 1.7,
+    "height": 2.0,
+    "depth": 0.3,
+    "units": "relative"
+   },
+   "transform": {
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "rotation": [
+     0,
+     0,
+     0
+    ]
+   }
+  },
+  {
+   "id": "label",
+   "name": "Label",
+   "level": "macro",
+   "role": "label",
+   "primitive": "box",
+   "topologyClass": "continuous-sculpt",
+   "topologyRationale": "plate",
+   "parent": "body",
+   "material": "accent",
+   "dimensions": {
+    "width": 1.3,
+    "height": 0.9,
+    "depth": 0.04,
+    "units": "relative"
+   },
+   "transform": {
+    "position": [
+     0,
+     0.25,
+     0.17
+    ],
+    "rotation": [
+     0,
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}

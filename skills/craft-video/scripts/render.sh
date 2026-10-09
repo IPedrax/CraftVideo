@@ -2,6 +2,7 @@
 # render.sh: the picture dispatcher. Turns a scenes file into a SILENT H.264 mp4 that matches the spec exactly.
 #   render.sh scenes out.mp4 [--provider NAME] [--timeline timeline.json] [--width 1920] [--height 1080] [--fps 30] [--duration S]
 #             [--brand brand.jsx] [--project out.proj] [--stills "t1 t2 ..." --sheet sheet.png]
+#             [--alpha 1 (transparent overlay: OUT must be .mov)] [--gpu off|auto|vulkan|egl] [--root DIR]   (html provider)
 # What "scenes" is depends on the provider: .jsx (effectcraft), .html (html), anything (command). --duration defaults to
 # "total" in the timeline, else 30. With --stills it renders review frames into one contact sheet instead of a video.
 # Provider order: --provider, env CRAFTVIDEO_RENDER, ./craftvideo.json, ~/.config/craftvideo/config.json, then effectcraft, html.
@@ -9,12 +10,13 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 SCENES="${1:?usage: render.sh scenes out.mp4 [--provider NAME] [options]}"; OUT="${2:?output mp4}"; shift 2
-PROV=""; W=1920; H=1080; FPS=30; DUR=""; TL=""; STILLS=""; EXTRA=()
+PROV=""; W=1920; H=1080; FPS=30; DUR=""; TL=""; STILLS=""; ALPHA=""; EXTRA=()
 while [ $# -gt 0 ]; do
   [ $# -ge 2 ] || cv_die "option $1 needs a value"
   case "$1" in
     --provider) PROV="$2";; --width) W="$2";; --height) H="$2";; --fps) FPS="$2";; --duration) DUR="$2";; --timeline) TL="$2";;
     --stills) STILLS="$2";;
+    --alpha) ALPHA="$2"; EXTRA+=("$1" "$2");;
     *) EXTRA+=("$1" "$2");;
   esac; shift 2
 done
@@ -23,6 +25,10 @@ if [ -z "$DUR" ]; then
   if [ -n "$TL" ] && [ -f "$TL" ]; then DUR="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["total"])' "$TL")"; else DUR=30; fi
 fi
 NAME="$(cv_resolve render "$PROV")"
+if [ "$ALPHA" = 1 ] || [ "$ALPHA" = true ]; then       # a transparent overlay: ProRes 4444 in a .mov, from a provider that can do alpha
+  case "$OUT" in *.mov) ;; *) cv_die "--alpha writes ProRes 4444, so the output must be a .mov file (got $OUT)";; esac
+  case "$(cv_info render "$NAME" alpha)" in True|true) ;; *) cv_die "provider '$NAME' cannot render with alpha; use the html provider";; esac
+fi
 ARGS=(--width "$W" --height "$H" --fps "$FPS" --duration "$DUR"); [ -z "$TL" ] || ARGS+=(--timeline "$TL")
 echo "rendering ${W}x${H} @ ${FPS} fps, ${DUR}s with provider '$NAME'" >&2
 

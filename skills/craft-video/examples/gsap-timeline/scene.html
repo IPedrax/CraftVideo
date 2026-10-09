@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>gsap-timeline: a GSAP timeline driven by seek(t)</title>
+<style>
+  html, body { margin: 0; background: #0a0a0b; overflow: hidden; }
+  #stage { position: relative; width: 100vw; height: 100vh; color: #f2f2f0; font-family: 'IBM Plex Mono', monospace; }
+  .line { position: absolute; left: 6.25vw; font: 900 12vw/0.92 'Big Shoulders Display', 'Arial Narrow', sans-serif; text-transform: uppercase; white-space: nowrap; }
+  #num { position: absolute; right: 6.25vw; top: 8vh; font: 900 17vw/0.9 'Big Shoulders Display', 'Arial Narrow', sans-serif; color: #ff2e88; font-variant-numeric: tabular-nums; }
+  svg { position: absolute; left: 6.25vw; bottom: 12vh; width: 50vw; overflow: visible; }
+  .kicker { position: absolute; left: 6.25vw; top: 6vh; padding: 0.6vh 0.9vw; background: #f2f2f0; color: #0a0a0b; letter-spacing: 0.24em; font-size: 1.4vw; }
+</style>
+<div id="stage"><div class="kicker">GSAP TIMELINE EXAMPLE</div><div id="num">0</div>
+  <svg viewBox="0 0 500 20"><path id="rule" d="M0 10 H500" stroke="#ff2e88" stroke-width="8" fill="none"/></svg></div>
+<script src="gsap.min.js"></script>     <!-- not shipped: npm i gsap, then copy node_modules/gsap/dist/gsap.min.js next to this file -->
+<script>
+  // The pattern for ANY animation library: build a PAUSED timeline once, and in seek(t) set its playhead to t. Nothing runs on a clock.
+  // Two GSAP specifics: tl.time(t) suppresses callbacks (onUpdate, onComplete), so tween plain state objects and render from them in
+  // seek() instead of writing the DOM inside a callback; and cue times become timeline positions, so the animation follows the narration.
+  const spec = window.__CV_SPEC || { width: 1920, height: 1080, fps: 30, duration: 6, timeline: null };
+  const cues = (spec.timeline && spec.timeline.sentences) || [{ label: "hook", start: 0.4 }, { label: "proof", start: 2.4 }, { label: "close", start: 4.4 }];
+  const stage = document.getElementById("stage"), num = document.getElementById("num"), rule = document.getElementById("rule");
+  const lines = cues.map((c, i) => { const d = document.createElement("div"); d.className = "line"; d.textContent = c.label; d.style.top = 18 + i * 22 + "vh"; stage.appendChild(d); return d; });
+  const len = rule.getTotalLength(); rule.style.strokeDasharray = len;
+  const state = { count: 0, draw: 0 };
+  const tl = gsap.timeline({ paused: true });
+  cues.forEach((c, i) => tl.from(lines[i], { x: "-8vw", opacity: 0, duration: 0.5, ease: "power4.out" }, c.start));
+  tl.to(state, { count: 596, duration: 2.2, ease: "power2.out" }, cues[1].start)         // a counter: tweened state, rendered below
+    .to(state, { draw: 1, duration: 1.2, ease: "power3.inOut" }, cues[0].start);
+  window.craftvideo = { seek(t) {
+    tl.time(t);
+    num.textContent = Math.round(state.count); rule.style.strokeDashoffset = len * (1 - state.draw);
+    return document.fonts.ready;
+  } };
+</script>

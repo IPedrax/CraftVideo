@@ -1,7 +1,7 @@
-# Providers: how the skill adapts to other TTS engines, renderers and editors
+# Providers: how the skill adapts to other TTS engines, transcribers, renderers and editors
 
 The skill is a pipeline of **stages**. Each stage has a **contract** (what it must hand to the next one) and one or more
-**providers** that fulfil it. The dispatchers (`narrate.sh`, `render.sh`, `assemble.sh`) pick a provider, run it, and then
+**providers** that fulfil it. The dispatchers (`narrate.sh`, `transcribe.sh`, `render.sh`, `assemble.sh`, `edit.sh`) pick a provider, run it, and then
 **enforce the contract on whatever came back**, so a new tool is one small adapter script, never a rewrite.
 
 ```
@@ -11,13 +11,15 @@ cues.json ──synth_music.py▶ music.wav
 silent.mp4 + narration.wav + music.wav ──assemble.sh──▶ final.mp4 (+ optional editor timeline)  ──finish.sh──▶ QA gates
 ```
 
-## The three contracts
+## The five contracts (voice, picture and mix make a video; transcribe and edit cut a recording)
 
 | Stage | Provider is handed | Provider must produce | The dispatcher then enforces |
 |---|---|---|---|
 | **tts** | `PLAIN_TEXT_FILE OUT [--instruct T] [--seed N] [--language L] [--speed X] [--ref F --ref-text T]` (one sentence per line, labels stripped; `OUT` ends in `.wav`) | speech in `OUT`, any format ffmpeg can read | converted to 48 kHz mono PCM16; longer than 0.3 s; warns if the length is far from 2.6 words/s |
 | **render** | `SCENES OUT.mp4 --timeline F --width W --height H --fps N --duration S [--brand F] [--project F] [--stills "t.." --sheet F]` | a silent H.264 mp4 | exact width, height, fps and frame count (`round(fps x duration)`); any audio track is stripped with a warning |
 | **assemble** | `--video V [--voice N] [--music M] --out OUT [--music-db -9] [--lufs -16] [--bitrate K] [--project P] [--interchange FMT --interchange-out FILE]` | a final mp4 with video and audio | video and audio streams present, picture length equal to the input, loudness within 1.5 LU of the target, interchange file written if asked |
+| **transcribe** | `AUDIO16K_WAV OUT [--language L] [--model M]` (a 16 kHz mono wav) | a transcript in **any** of: our JSON `{"words":[{"text","start","end"}]}`, OpenAI `verbose_json`, faster-whisper segments, SRT, WebVTT | normalised to `{language, source, approx_word_times, snapped_to_speech, text, words[]}`, sorted, clamped, rejected if it runs past the recording; word times snapped onto the voiced audio; cue-level formats get estimated word times and are marked `approx_word_times` |
+| **edit** | `EDL.json OUT.mp4 [--ass captions.ass] [--chapters meta.txt]` (the EDL is `edit.json`, see `edit.md`) | the edited mp4 | duration = the kept segments within 2 frames, size and fps as asked, audio present when the source had it; anything in the EDL the provider's `features` do not list is named in a warning |
 
 One more rule on top of the contract for **tts**: sentences must be **separated by audible pauses** (about 0.2 s or more at -38 dB),
 because `tighten_voice.py` finds each sentence's start from them. An engine that runs sentences together should be called once
@@ -34,14 +36,16 @@ A provider is `scripts/providers/<kind>/<name>.sh`. It must answer three calls a
 ```
 
 Capabilities the dispatchers read from `--info`: tts `clone` and `design` (set `false` if the engine cannot; the dispatcher then
-refuses `--ref` and warns on `--instruct` instead of silently ignoring them), render `stills`, assemble `interchange`
-(comma list of formats it can write, empty if none). Logs go to stderr. Never prompt. Exit non-zero with a one-line reason on failure.
+refuses `--ref` and warns on `--instruct` instead of silently ignoring them), render `stills` and `alpha` (transparent output; `render.sh --alpha`
+is refused without it), assemble `interchange` (comma list of formats it can write, empty if none), edit `features` (a list from: cuts, zoom,
+audio, music, loudness, color, stabilize, reframe, captions, overlays, chapters). Logs go to stderr. Never prompt. Exit non-zero with a one-line reason on failure.
 
 ## Choosing a provider
 
-First match wins: `--provider NAME` on the dispatcher, env `CRAFTVIDEO_TTS` / `CRAFTVIDEO_RENDER` / `CRAFTVIDEO_ASSEMBLE`,
+First match wins: `--provider NAME` on the dispatcher, env `CRAFTVIDEO_TTS` / `_RENDER` / `_ASSEMBLE` / `_TRANSCRIBE` / `_EDIT`,
 `./craftvideo.json` (this project), `~/.config/craftvideo/config.json` (you), then the first **usable** provider in the auto
-order (tts: voicestudio, openai; render: effectcraft, html; assemble: filmcraft, ffmpeg). `dryrun`, `file` and `command` are never
+order (tts: voicestudio, openai; render: effectcraft, html; assemble: filmcraft, ffmpeg; transcribe: faster-whisper, openai; edit: ffmpeg, filmcraft).
+`dryrun`, `file` and `command` are never
 auto-selected: a silent fallback to a fake voice, or to a command you did not mean to run, would be worse than a clear error.
 
 ```bash
@@ -66,6 +70,13 @@ bash scripts/conformance.sh all             # prove every usable provider honour
 | assemble | `filmcraft` | headless NLE: tracks, gain, loudness, **editor interchange** (edl, xml, fcpxml, otio, aaf, omf) | live, export of identical size to the first video's; the OTIO file was checked structurally |
 | assemble | `ffmpeg` | mix + two-pass loudnorm + mux, **no editor needed** | live on the first video's media, QA gates pass |
 | assemble | `command` | any editor or mixer via `ASSEMBLE_CMD` | with a stand-in command, conformance passes |
+| transcribe | `faster-whisper` | local Whisper (VoiceStudio's venv); small on GPU takes about 1.4 s for 30 s of audio | live; conformance: 22 of 24 known words recognised from real speech |
+| transcribe | `openai` | any OpenAI-compatible `/audio/transcriptions` server (**a hosted one uploads the audio**) | written, not run against a server here (conformance skips without `OPENAI_BASE_URL`) |
+| transcribe | `command` | any CLI via `STT_CMD` (whisper.cpp, other Whisper CLIs, your script) | a stand-in command (copying an SRT) ran through `transcribe.sh`; conformance skips without `STT_CMD` |
+| transcribe | `file` | a transcript you already have (json, srt, vtt) | an SRT run through `transcribe.sh` |
+| edit | `ffmpeg` | the full-featured applier: cuts, zoom, audio chain, music ducking, loudness, colour, stabilise, reframe, captions, titles, overlay clips, chapters | live; conformance (QA gates plus ground-truth checks) passes |
+| edit | `filmcraft` | frame-accurate cuts and loudness on a real timeline, project left for hand finishing | live; conformance passes (no audio clean-up, so the hiss check is skipped for it) |
+| edit | `command` | any editor or script via `EDIT_CMD` | a stand-in command passed the dispatcher's contract check; conformance skips without `EDIT_CMD` |
 
 Not tested here: importing the interchange files into DaVinci Resolve, Premiere, Final Cut or Kdenlive (the files are produced by
 FilmCraft; media is referenced by absolute path, so import where those paths exist or relink).
@@ -99,6 +110,8 @@ Set a template and the matching `command` provider does the rest (values are she
 | tts | `TTS_CMD` | `{script} {out} {instruct} {seed} {language} {speed} {ref} {ref_text}` |
 | render | `RENDER_CMD` | `{scenes} {out} {timeline} {width} {height} {fps} {duration} {brand} {project}` |
 | assemble | `ASSEMBLE_CMD` | `{video} {voice} {music} {out} {music_db} {lufs} {bitrate} {project}` |
+| transcribe | `STT_CMD` | `{audio} {out} {language} {model}` |
+| edit | `EDIT_CMD` | `{edl} {source} {out} {ass} {chapters} {lufs} {width} {height} {fps}` (set `EDIT_FEATURES=zoom,audio,...` for what it really does) |
 
 ## Recipes for other tools (sketches: only the ones marked tested were run here)
 
@@ -112,8 +125,14 @@ Set a template and the matching `command` provider does the rest (values are she
 - ElevenLabs and other hosted APIs: wrap a `curl` call in a script and point `TTS_CMD` at it (hosted: the text leaves the machine, and
   check the service's licence for your use). Tested: the openai and command mechanics, not these services.
 
+**Transcribe** (set `CRAFTVIDEO_TRANSCRIBE=command` plus `STT_CMD`, or `openai` for servers):
+- whisper.cpp: `whisper-cli -m /models/ggml-small.en.bin -f {audio} -osrt -of {out}.tmp && mv {out}.tmp.srt {out}`. Its SRT is cue-level, so word times are
+  estimated (`approx_word_times`): fine for captions, not for precise filler cuts. Sketch, not run here.
+- faster-whisper from another install: set `WHISPER_MODEL`, `WHISPER_DEVICE`; models must already be cached unless `CRAFTVIDEO_ALLOW_DOWNLOAD=1`. Tested.
+- A hosted STT API: wrap `curl` in a script and point `STT_CMD` at it (hosted: **the audio leaves the machine**). Tested: the template mechanism only.
+
 **Picture:**
-- React/Tailwind/SVG/canvas/WebGL: use the `html` provider (`reference/html-scenes.md`). Tested.
+- React/Tailwind/SVG/canvas/WebGL/WebGPU/Three.js/GSAP: use the `html` provider (`reference/html-scenes.md`, `reference/motion-graphics.md`). Tested.
 - Remotion: `RENDER_CMD='npx remotion render src/index.ts Main {out} --width={width} --height={height} --fps={fps}'`. Sketch.
 - Manim: `RENDER_CMD='manim -qh --fps {fps} -o {out} {scenes} Main'`. Sketch (check the output size and name match `{out}`).
 - Blender: `RENDER_CMD='blender -b {scenes} -o //frames_ -F PNG -a && ffmpeg ... {out}'`. Sketch.

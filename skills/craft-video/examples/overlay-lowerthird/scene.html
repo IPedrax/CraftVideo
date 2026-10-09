@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8">
+<style>html,body{margin:0;background:transparent;overflow:hidden}
+#card{position:absolute;left:5vw;bottom:24vh;padding:1.6vh 2vw;background:#0a0a0b;color:#f2f2f0;font:700 3.4vw/1.1 'IBM Plex Mono',monospace;border-left:0.9vw solid #ff2e88;transform-origin:left center}
+#sub{font-weight:400;font-size:1.7vw;color:#ff2e88;letter-spacing:.18em;margin-top:.6vh}</style>
+<div id="card"><div>EDITED LOCALLY</div><div id="sub">ALPHA OVERLAY · PRORES 4444</div></div>
+<script>
+const spec = window.__CV_SPEC, c = document.getElementById("card"), cl = (x) => Math.min(Math.max(x, 0), 1), eo = (x) => 1 - Math.pow(1 - cl(x), 4);
+window.craftvideo = { seek(t) { const inn = eo(t / 0.5), out = eo((t - (spec.duration - 0.5)) / 0.5); c.style.opacity = inn * (1 - out); c.style.transform = `translateX(${(1 - inn) * -8}vw) translateX(${out * -8}vw)`; } };
+</script>

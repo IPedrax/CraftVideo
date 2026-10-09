@@ -1,0 +1,6 @@
+{
+  "overlays": [
+    { "type": "clip", "file": "/abs/path/to/lowerthird.mov", "start": 2.0, "x": 0, "y": 0 },
+    { "type": "title", "text": "A plain title burned in by ffmpeg", "start": 9, "end": 11, "pos": "lower" }
+  ]
+}

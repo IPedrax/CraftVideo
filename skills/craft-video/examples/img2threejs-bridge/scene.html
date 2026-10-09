@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>img2threejs-bridge: an img2threejs model inside a craft-video scene</title>
+<style>
+  html, body { margin: 0; background: #0a0a0b; overflow: hidden; } canvas { display: block; }
+  #ui { position: fixed; inset: 0; pointer-events: none; color: #f2f2f0; font-family: 'IBM Plex Mono', monospace; }
+  #kicker { position: absolute; left: 6.25vw; top: 6vh; padding: 0.6vh 0.9vw; background: #f2f2f0; color: #0a0a0b; letter-spacing: 0.24em; font-size: 1.4vw; }
+  #title { position: absolute; left: 6.25vw; bottom: 9vh; font: 900 9vw/0.92 'Big Shoulders Display', 'Arial Narrow', sans-serif; text-transform: uppercase; }
+</style>
+<div id="ui"><div id="kicker">IMG2THREEJS MODEL, ANIMATED BY CRAFT-VIDEO</div><div id="title"></div></div>
+<script type="module">
+  import * as THREE from "three";
+  import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+  import { createCartModel } from "./model.js";            // produced by make_model.sh: img2threejs' factory, bundled by scripts/bundle.sh
+
+  const spec = window.__CV_SPEC || { width: 1280, height: 720, fps: 30, duration: 6, timeline: null };
+  const cues = (spec.timeline && spec.timeline.sentences) || [{ label: "hook", start: 0.4 }, { label: "proof", start: 2.4 }, { label: "close", start: 4.4 }];
+  const clamp = (x) => Math.min(Math.max(x, 0), 1), smooth = (x) => { x = clamp(x); return x * x * (3 - 2 * x); }, lerp = (a, b, f) => a + (b - a) * f;
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1); renderer.setSize(spec.width, spec.height); document.body.prepend(renderer.domElement);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0a0a0b);       // scene.background, not setClearColor: see three-3d/scene.html
+  scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+  const camera = new THREE.PerspectiveCamera(30, spec.width / spec.height, 0.1, 50);
+  const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(-3, 4, 5); scene.add(key);
+
+  const model = createCartModel();                          // a THREE.Group built from the spec's primitives
+  const pivot = new THREE.Group(); pivot.add(model); scene.add(pivot);   // rotate the pivot: a model spun about its own origin would orbit off-centre
+  const box = new THREE.Box3().setFromObject(model), size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+  model.position.sub(mid); const R = Math.max(size.x, size.y, size.z);   // centre it, then frame the camera from its size
+
+  const title = document.getElementById("title");
+  window.craftvideo = { seek(t) {
+    pivot.rotation.y = -0.5 + t * 0.7; pivot.rotation.x = 0.08 * Math.sin(t * 0.8);
+    const f = smooth((t - cues[1].start) / 1.2), d = R * lerp(4.4, 3.2, f);                 // dolly in on the second cue
+    camera.position.set(0, R * 0.12, d); camera.lookAt(0, 0, 0);
+    const cur = [...cues].reverse().find((c) => t >= c.start); title.textContent = cur ? cur.label : "";
+    renderer.render(scene, camera); return document.fonts.ready;
+  } };
+</script>

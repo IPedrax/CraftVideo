@@ -5,7 +5,8 @@
 #   <name>.sh --info     print one line of JSON describing it
 #   <name>.sh --check    exit 0 if usable right now; otherwise print the reason on one line and exit 1
 #   <name>.sh <args>     do the work (arguments depend on the kind)
-# kinds: tts (script text -> audio), render (scenes -> silent mp4), assemble (video + voice + music -> final mp4)
+# kinds: tts (script text -> audio), render (scenes -> silent mp4), assemble (video + voice + music -> final mp4),
+#        transcribe (recording -> word timings), edit (recording + edit decision list -> edited mp4)
 CV_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CV_SKILL="$(cd "$CV_HERE/.." && pwd)"
 CV_VS="${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}"
@@ -22,11 +23,13 @@ cv_order() {
     tts)      echo "voicestudio openai" ;;
     render)   echo "effectcraft html" ;;
     assemble) echo "filmcraft ffmpeg" ;;
-    *) cv_die "unknown kind '$1' (tts, render, assemble)" ;;
+    transcribe) echo "faster-whisper openai" ;;
+    edit)     echo "ffmpeg filmcraft" ;;
+    *) cv_die "unknown kind '$1' (tts, render, assemble, transcribe, edit)" ;;
   esac
 }
 cv_provider_script() { echo "$CV_HERE/providers/$1/$2.sh"; }
-cv_kinds() { echo "tts render assemble"; }
+cv_kinds() { echo "tts render assemble transcribe edit"; }
 cv_names() { ls "$CV_HERE/providers/$1" 2>/dev/null | grep '\.sh$' | sed 's/\.sh$//' | sort; }   # only *.sh files are providers (helpers like html-render.mjs sit beside them)
 
 # Configured provider for a kind: env CRAFTVIDEO_<KIND>, then ./craftvideo.json, then ~/.config/craftvideo/config.json
