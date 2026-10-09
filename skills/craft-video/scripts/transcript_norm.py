@@ -71,21 +71,59 @@ def snap_to_speech(words, wav):
     for w in words:
         s0, e0 = w["start"], w["end"]
         hit = [r for r in runs if r[0] < e0 and r[1] > s0]
+        # a word stretched back across a pause: long, barely touching voiced audio, with the next run starting right where it ends.
+        # (the speech is in that next run; what it touches is the tail of the word before)
+        if hit and e0 - s0 > 0.45:
+            overlap = sum(min(e0, r[1]) - max(s0, r[0]) for r in hit)
+            if overlap < 0.35 * (e0 - s0) and any(0 <= r[0] - e0 <= 0.15 for r in runs): hit = []
+        natural = min(e0 - s0, 0.1 + 0.07 * len(re.sub(r"[^A-Za-z0-9]", "", w["text"])))      # a word moved onto a run gets a speech-like length
         if hit:
             s0, e0 = max(s0, hit[0][0] - 0.02), min(e0, hit[-1][1] + 0.04)
         else:
-            nxt = next((r for r in runs if r[0] >= e0 and r[0] - e0 <= 1.0), None)
+            nxt = next((r for r in runs if r[0] >= e0 - 0.03 and r[0] - e0 <= 1.0), None)
             before = [r for r in runs if r[1] <= s0 and s0 - r[1] <= 0.5]
-            if nxt: d = e0 - s0; s0 = nxt[0]; e0 = min(s0 + d, nxt[1] + 0.04)
-            elif before: d = e0 - s0; e0 = before[-1][1] + 0.04; s0 = max(0.0, e0 - d)
+            if nxt: s0 = nxt[0]; e0 = min(s0 + natural, nxt[1] + 0.04)
+            elif before: e0 = before[-1][1] + 0.04; s0 = max(0.0, e0 - natural)
         s0 = max(s0, prev_end); e0 = max(e0, s0 + 0.04)
         moved += abs(s0 - w["start"]) > 0.05 or abs(e0 - w["end"]) > 0.05
         w["start"], w["end"] = round(s0, 3), round(e0, 3); prev_end = w["end"]
+    # second pass: a word with no punctuation after it is never followed by a pause of over half a second (a function word such as "A" glues to
+    # the word after it). Whisper sometimes times it at the end of the previous sentence; move it to just before the word it belongs to.
+    for i in range(len(words) - 1):
+        w, nx = words[i], words[i + 1]
+        if w["text"][-1:] not in ".,;:!?\u2014" and nx["start"] - w["end"] > 0.5:
+            d = min(w["end"] - w["start"], 0.1 + 0.07 * len(re.sub(r"[^A-Za-z0-9]", "", w["text"])))
+            w["end"] = round(nx["start"] - 0.02, 3); w["start"] = round(max(0.0, w["end"] - d), 3); moved += 1
     return moved
+
+
+def selftest():
+    """Synthetic speech: run A 0.0-0.9 s, silence, run B 2.0-3.0 s. Whisper-style errors the snapping must fix."""
+    import os, tempfile
+    import numpy as np, soundfile as sf
+    sr = 16000; t = np.arange(3 * sr) / sr; rng = np.random.default_rng(1)
+    x = rng.standard_normal(len(t)) * 0.002
+    for a, b in ((0.0, 0.9), (2.0, 3.0)):
+        m = (t >= a) & (t < b); x[m] += 0.3 * np.sin(2 * np.pi * 180 * t[m]) * (0.6 + 0.4 * np.sin(2 * np.pi * 4 * t[m]))
+    wav = os.path.join(tempfile.mkdtemp(), "t.wav"); sf.write(wav, x, sr)
+    W = lambda *r: [{"text": w, "start": s, "end": e} for w, s, e in r]
+    # 1. an opening word stretched back into the silence before it
+    w = W(("so", 1.4, 2.25), ("today", 2.25, 2.7)); snap_to_speech(w, wav); assert w[0]["start"] >= 1.95, w
+    # 2. a word stretched back across a pause, its start sitting in the tail of the previous word: it belongs to the next run
+    w = W(("one", 0.0, 0.75), ("two", 0.75, 1.97), ("three", 2.3, 3.0)); snap_to_speech(w, wav)
+    assert w[1]["start"] >= 1.97 and w[1]["end"] <= w[2]["start"] + 1e-6, w
+    # 3. ordinary adjacent words in one run are left alone
+    w = W(("a", 2.0, 2.4), ("b", 2.4, 2.8)); before = [dict(x) for x in w]; snap_to_speech(w, wav)
+    assert all(abs(a["start"] - b["start"]) < 0.06 and abs(a["end"] - b["end"]) < 0.06 for a, b in zip(w, before)), w
+    # 4. a lone function word timed at the end of the previous sentence, with a long pause before the word it belongs to
+    w = W(("problem.", 0.2, 0.7), ("A", 0.7, 0.88), ("connected", 2.05, 2.6)); snap_to_speech(w, wav)
+    assert w[1]["start"] >= 1.8 and w[1]["end"] < w[2]["start"], w
+    print("transcript_norm selftest: ok")
 
 
 def main():
     ap = argparse.ArgumentParser()
+    if len(sys.argv) > 1 and sys.argv[1] == "--selftest": return selftest()
     ap.add_argument("inp"); ap.add_argument("out"); ap.add_argument("--audio")
     ap.add_argument("--duration", type=float); ap.add_argument("--language"); ap.add_argument("--source", default="")
     a = ap.parse_args()

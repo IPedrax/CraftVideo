@@ -68,7 +68,7 @@ really overlaps voiced audio. "like" and "you know" are not touched: they are us
   "segments": [ { "in": 0.75, "out": 4.32, "zoom": 1.0 }, { "in": 6.30, "out": 7.55, "zoom": 1.08 } ],   // source seconds, back to back in the output
   "audio":    { "highpass": 80, "denoise": 12, "compress": true, "presence": true, "fade_ms": 8, "lufs": -16.0 },
   "video":    { "color": "auto", "stabilize": false, "lut": null },     // color: "none" | "auto" | {"saturation":1.2,"contrast":1.1,...}; lut: a .cube path
-  "captions": { "enabled": true, "style": "box", "max_chars": 42, "burn": true, "sidecar": "srt" },   // style: box | plain | karaoke
+  "captions": { "enabled": true, "style": "box", "max_chars": 42, "burn": true, "sidecar": "srt" },   // style: box | plain | karaoke; optional: font ("IBM Plex Mono"), max_lines, accent ("#ff2e88")
   "music":    null,                                                      // or {"file": "...", "db": -22, "duck": true}
   "overlays": [                                                          // output-time seconds
     { "type": "title", "text": "Any text, 100% safe", "start": 9, "end": 11, "pos": "lower" },

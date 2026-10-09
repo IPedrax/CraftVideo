@@ -87,7 +87,7 @@ Spell numbers as they are said ("eighty-four").
 bash $S/narrate.sh work/script.txt work/narration_raw.wav --seed 20261009 \
   --instruct "(a confident, measured male narrator in his thirties, documentary tone, clear and natural, studio quality)"
 ```
-Add `--provider NAME` to override. Cloning: `--ref clip.wav --ref-text "exact words in the clip"` (refused by providers that cannot clone; permission
+Write a name the voice may get wrong the way it should sound ("Keyside" for Quayside) and spell it correctly in the captions. Add `--provider NAME` to override. Cloning: `--ref clip.wav --ref-text "exact words in the clip"` (refused by providers that cannot clone; permission
 first). Another language: `--language Portuguese`. Your own recording: `CRAFTVIDEO_NARRATION_FILE=take.wav bash $S/narrate.sh ... --provider file`.
 Fast preview with no model: `--provider dryrun`. With voicestudio the first call after a start spends ~90 s on one-time compilation.
 
@@ -97,6 +97,18 @@ $PY $S/tighten_voice.py --raw work/narration_raw.wav --script work/script.txt --
 ```
 Cuts only inside pauses (no time-stretch), finds each sentence start, writes `timeline.json`. Check the printed table against the script. A
 wrong break: `--breaks` (raw seconds) or `--gaps`. "Too long": shorten the script, do not speed it up.
+
+**When the voice runs sentences together** (typical in the second half of a long script: `tighten_voice` stops with "found N inner pauses" or picks comma pauses
+and the cues come out wrong), find the boundaries from word times instead, then pin them:
+```bash
+bash $S/transcribe.sh work/narration_raw.wav work/raw_transcript.json --language en
+$PY $S/split_narration.py --raw work/narration_raw.wav --script work/script.txt --transcript work/raw_transcript.json --out work/narration_split.wav --breaks-out work/breaks.json
+$PY $S/tighten_voice.py --raw work/narration_split.wav --script work/script.txt --out work/narration.wav --timeline work/timeline.json --target 87 \
+  --breaks "$($PY -c 'import json; print(",".join(map(str, json.load(open("work/breaks.json")))))')" --gaps 0.3,0.3,0.7,0.3,...   # one gap per boundary
+```
+`split_narration.py` leaves a natural pause alone and inserts one (0.3 s by default) only where the voice had none; speech is never cut or stretched. `--gaps` takes one value
+per boundary, so a scene change can get 0.7 s for its wipe. Size the length in two runs: `--target 200` to read `speech_end`, then `--target <speech_end + the end-card hold>`.
+Check the printed table: each sentence's duration must fit its word count.
 
 **6. Scenes.** What a scenes file is depends on the render provider.
 - `effectcraft`: write `work/scenes.jsx` with `jsx/ec_lib.jsx` (`begin`, `background`, `scanbar`, `footer`, `txt`, `rect`, `kicker`, `panel`, `chip`,
@@ -195,6 +207,7 @@ Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, capti
 | a Three.js frame differs from the preview, or `WARNING: the frame at t=0 came out different` | the scene depends on history; use `scene.background`, no clocks, seeded random (`reference/motion-graphics.md`) |
 | `no WebGPU adapter` or a white WebGPU frame | request the adapter with `powerPreference` and fall back to `forceFallbackAdapter`; read back to a 2D canvas instead of presenting (`examples/webgpu-shader/`) |
 | `scene: 404 /__cv/three/...` | three.js is not installed: `bash $S/get_three.sh <path-to-three>` |
+| `narrate.sh` finishes (the file exists) but the command never returns | the backend daemon inherited a captured pipe: run `narrate.sh` from the shell (output to a log file), not through `subprocess.run(capture_output=True)` |
 | new MCP tools not visible | servers registered mid-session load only in a new chat; the scripts use CLIs and REST, same engines |
 
 When the `effectcraft`, `filmcraft` or `voicestudio` MCP tools are available in the session they can replace the CLI calls (same commands,

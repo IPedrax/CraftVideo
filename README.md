@@ -36,7 +36,7 @@ Built for **Claude Code**. Developed and tested on Linux with an NVIDIA GPU (see
 | Preflight | check the core tools, resolve a provider per stage, check extras for what was chosen | [`preflight.sh`](skills/craft-video/scripts/preflight.sh) |
 | Plan | primary-source research, brag storyboard, claims table | [`storyboard.md`](skills/craft-video/reference/storyboard.md) |
 | Narrate | script (one sentence per line) to speech, any TTS provider, normalised to 48 kHz mono | [`narrate.sh`](skills/craft-video/scripts/narrate.sh) |
-| Tighten | land on an exact length, find every sentence start, write the cues | [`tighten_voice.py`](skills/craft-video/scripts/tighten_voice.py) |
+| Tighten | land on an exact length, find every sentence start, write the cues (when the voice runs sentences together, [`split_narration.py`](skills/craft-video/scripts/split_narration.py) finds the boundaries from word times first) | [`tighten_voice.py`](skills/craft-video/scripts/tighten_voice.py) |
 | Scenes | scripted picture timed to the cues, any render provider, exact size, fps and frame count | [`render.sh`](skills/craft-video/scripts/render.sh) |
 | Review | contact sheet of stills for every scene and mid-transition, before the full render | `render.sh --stills` |
 | Score | generated music that follows the scene cuts and ducks under the voice | [`synth_music.py`](skills/craft-video/scripts/synth_music.py) |

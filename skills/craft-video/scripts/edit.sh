@@ -35,7 +35,14 @@ if [ -n "$CAPS_ON" ]; then
     STYLE="${CSTYLE:-$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("captions") or {}).get("style","box"))' "$EDL")}"; [ "$STYLE" != karaoke ] || true
     case "$STYLE" in box|plain|karaoke) ;; *) STYLE=box;; esac
     SRT="${OUT%.*}.srt"
-    "$CV_PY" "$CV_HERE/captions.py" --transcript "$TR" --edl "$EDL" --srt "$SRT" --ass "$T/captions.ass" --style "$STYLE" >&2
+    mapfile -t CAPARGS < <(python3 - "$EDL" <<'PY'                    # font, max_chars, max_lines and accent from the EDL, one argument per line
+import json, sys
+c = json.load(open(sys.argv[1])).get("captions") or {}
+for k, flag in (("font", "--font"), ("max_chars", "--max-chars"), ("max_lines", "--max-lines"), ("accent", "--accent")):
+    if c.get(k) is not None: print(flag); print(c[k])
+PY
+)
+    "$CV_PY" "$CV_HERE/captions.py" --transcript "$TR" --edl "$EDL" --srt "$SRT" --ass "$T/captions.ass" --style "$STYLE" "${CAPARGS[@]}" >&2
     BURN="$(python3 -c 'import json,sys; print("0" if (json.load(open(sys.argv[1])).get("captions") or {}).get("burn", True) is False else "1")' "$EDL")"
     [ "$BURN" = 1 ] && ARGS+=(--ass "$T/captions.ass")
   fi

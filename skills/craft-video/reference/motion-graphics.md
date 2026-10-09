@@ -115,6 +115,24 @@ a card with real alpha (255 on the card, 0 around it) composited over an edited 
 `examples/three-3d/scene.html` shows the pattern: in alpha mode it skips the background, fog, grid and UI, and **renders directly instead of through the
 composer**, because the bloom and output passes write an opaque alpha (the first try came out 100% opaque).
 
+## A longer video from several scenes (lessons from a 90-second one)
+
+A single page is fine for 20 seconds. For a minute or more, make **one HTML file per beat** and join the renders:
+
+- `beats.json` (written from `timeline.json`): each scene's `t0` and length on **whole frames** (`round(start x fps)`), with a short lead-in before the first cue of the beat.
+  Scenes read it through a two-line `beat("name")` helper and time everything as `at("cue") - t0`, so a re-timed narration needs no scene edits.
+- Keep every on-screen string, number and source in **one `facts.json`** that the scenes load. Wording and sourcing changes then never touch scene code.
+- Put the same wipe (a pink bar in the last and first 0.3 s) in every scene; it hides the cut. Join with `ffmpeg -f concat -c copy` and check the frame total.
+- Chapter stamps are small **transparent overlays** (ProRes 4444) composited by the edit step, together with the captions and MP4 chapters. Leave the bottom 18% free for captions.
+- Share the 3D pieces as modules (a globe, a city, a padlock) with an `update(t, params)` function; a scene only picks camera keyframes and what turns on when.
+
+Things that went wrong, so they need not again:
+- **`ShaderMaterial` output is linear and the output pass sRGB-encodes it.** A "dark" `0.045` came out mid-grey; near-black wants about `0.004`. Fade distant geometry to the background in the shader, since scene fog does not reach it.
+- **Do not feed an interpolated varying into a `sin()` hash.** A per-building seed that differs by 1e-6 between pixels became visible grain in every window; round it to an integer in the vertex shader.
+- **Pixel-wide lines are too thin at 1080p.** `Line2` (from `three/addons/lines`) with a `linewidth` in pixels gives arcs that read; animate them with `geometry.instanceCount`.
+- **A dense procedural city hides everything inside it.** For a shot that must show cones, people or a route, lower the towers and clear a plaza along the path, and align the path to real street centres (the walker first went through buildings).
+- **Check each scene as a contact sheet at final resolution before the full render.** Four of the five scenes had a layout fault (text overlapping, a card overflowing, a stat colliding with a stamp) that no single frame in the test had shown.
+
 ## Which Chromium
 
 The renderer prefers a full system Chromium (`CRAFTVIDEO_CHROMIUM`, `/usr/bin/chromium`, `google-chrome-stable`) and falls back to Playwright's
