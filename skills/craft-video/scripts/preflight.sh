@@ -56,6 +56,9 @@ if [ "${CHOSEN[edit]:-}" = ffmpeg ]; then
   done
   grep -qE " vidstabdetect " <<<"$FILT" && ok "ffmpeg filter vidstab (stabilise)" || info "no vidstab: the stabilize option will fail (optional)"
   grep -q prores_ks <<<"$(ffmpeg -hide_banner -encoders 2>/dev/null)" && ok "prores_ks (transparent overlays)" || info "no prores_ks encoder: --alpha overlays will fail (optional)"
+  FD="${FACE_DIR:-$HOME/.local/share/craftvideo/face}"
+  [ -x "$FD/venv/bin/python" ] && [ -f "$FD/face_detection_yunet_2023mar.onnx" ] && ok "face tools at $FD (a vertical crop that follows the speaker)" \
+    || info "face tools not installed: scripts/get_face.sh adds a vertical crop that follows the speaker (the centred crop and the blurred fill do not need it)"
 fi
 if [ "${CHOSEN[transcribe]:-}" = faster-whisper ]; then
   echo "transcription (faster-whisper)"

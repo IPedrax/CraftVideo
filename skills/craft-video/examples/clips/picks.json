@@ -1,0 +1,18 @@
+{
+  "picks": [
+    {
+      "start": 95.0,
+      "end": 125.38,
+      "title": "Why we threw away a working system",
+      "scores": { "hook": 20, "engagement": 17, "value": 20, "shareability": 15 },
+      "why": "opens on the question, then one number that explains it, and ends on the point"
+    },
+    {
+      "start": 176.0,
+      "end": 204.38,
+      "title": "The migration that took eleven months",
+      "scores": { "hook": 18, "engagement": 17, "value": 21, "shareability": 14 },
+      "why": "a wrong estimate told straight, then the one rule that came out of it (the last sentence added to the candidate)"
+    }
+  ]
+}

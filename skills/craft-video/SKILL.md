@@ -1,6 +1,6 @@
 ---
 name: craft-video
-description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical, titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, a hand-painted mascot (Clawd), and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or for 3D or motion graphics in a video, or a drawn mascot (Clawd, the Claude Code mascot) on a video where it fits. Not for generated live-action footage, talking-head avatars, lip-sync, or photoreal people."
+description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical (the crop can follow the speaker's face), titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive; and CLIPS: find the best moments in a long recording (podcast, talk, stream, interview) and cut each as a vertical short with a title and kinetic captions. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, a hand-painted mascot (Clawd), and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or to make shorts, clips or Reels out of a long video, find the best moments of a podcast or talk, or turn a landscape recording into a vertical one that keeps the speaker in frame; or for 3D or motion graphics in a video, or a drawn mascot (Clawd, the Claude Code mascot) on a video where it fits. Not for generated live-action footage, talking-head avatars, lip-sync, or photoreal people."
 ---
 
 # craft-video
@@ -14,6 +14,8 @@ spoken cue. **Edit** takes a recording and cuts, cleans, captions and levels it 
 | a video from a topic, product or news item (the picture is graphics, text, numbers, 3D) | **A: make** | "Mode A" below |
 | a Reel, Short or TikTok (vertical, for social) | **A: make**, with the short-form numbers | `reference/short-form.md`, then "Mode A" |
 | an existing recording cut, cleaned up, captioned, levelled, reframed, or made to look professional | **B: edit** | "Mode B" below, then `reference/edit.md` |
+| shorts or clips out of a long recording (a podcast, talk, stream, interview): find the moments, cut each as a vertical short | **B: edit**, long to short | "Mode B" below, then `reference/clips.md` |
+| a landscape recording as 9:16 with the speaker kept in frame | **B: edit**, `--reframe face` | `reference/edit.md`, "Following the speaker's face" |
 | 3D, shaders, kinetic type, lower thirds or other motion graphics in either | **C: motion layer** | "Motion graphics and 3D" below, then `reference/motion-graphics.md` |
 | a mascot on the video: Clawd, hand-painted, reacting to the narration | **C: motion layer** | `reference/mascot.md` (it says when a mascot fits and when it does not) |
 
@@ -66,7 +68,8 @@ All of it, with the contracts and recipes, is in `reference/providers.md`. Read 
 9. **Name deliverables after the video.** A real title, in the file name and in the file's metadata: never `brag.mp4`, `final.mp4` or `edited.mp4`. One folder
    per video, named after its title: never a shared `brag-output/` or `output/` folder.
 10. **A recording belongs to the person in it.** Edit only with their say-so; a hosted transcribe provider uploads the audio, so use one only with consent;
-   never cut words so that someone seems to say something they did not (read `review.md`); captions come from the real transcript, never invented.
+   never cut words so that someone seems to say something they did not (read `review.md`); captions come from the real transcript, never invented. A clip's title says what the clip says,
+   and a short is picked for accuracy before it is picked for reach.
 11. **A mascot is someone's character.** Clawd is Anthropic's: use it in videos about Claude and its world, never to suggest an endorsement, and leave it out of serious subjects and of
    anything the user did not ask for and the topic does not call for (`reference/mascot.md`). Its drawing code is MIT (John Heibel) and is installed, not stored here.
 
@@ -192,6 +195,20 @@ $PY $S/review_edit.py $D/edit.json $V $D/review --transcript $D/transcript.json
    re-apply until nothing real was cut and no cut jumps oddly. `qa_edit.py` must pass: a FAIL means fix, not ship.
 4. Deliver the titled mp4 and its `.srt`; say which provider cut it and what that provider does not do. You cannot watch or hear it: say so.
 
+**A landscape recording as a vertical one, with the speaker kept in frame.** `crop` takes the middle and loses a speaker who sits to one side. Run `CRAFTVIDEO_ALLOW_DOWNLOAD=1 bash $S/get_face.sh` once (OpenCV and the 232 KB YuNet
+model, both hash-pinned), then `~/.local/share/craftvideo/face/venv/bin/python $S/face_track.py analyze rec.mp4 $D/face.json`, and plan with `--width 1080 --height 1920 --reframe face --face-track $D/face.json`. A shot with no face
+(a slide, a screen recording) gets the whole frame over a blurred copy. Look at frames from each shot before delivering (`reference/edit.md`, "Following the speaker's face").
+
+**Shorts out of a long recording** (a podcast, talk, stream, interview). The script proposes and checks, you choose; the rubric, the limits and the commands are in `reference/clips.md`:
+```bash
+python3 $S/find_clips.py candidates --transcript $D/transcript.json --audio rec.mp4 --out $D/candidates.json   # sentence-aligned windows, scored on structure and loudness; it cannot tell a window is empty
+# read the candidates and the transcript around them; write $D/picks.json (start, end, a 3 to 9 word title, scores 0 to 25 for hook, engagement, value, shareability, why)
+python3 $S/find_clips.py validate $D/picks.json --transcript $D/transcript.json [--snap]      # bounds on sentence edges, 15 to 60 s, no overlap
+python3 $S/find_clips.py edl $D/picks.json --source rec.mp4 --transcript $D/transcript.json --analysis $D/analysis.json --out-dir $D/clips --reframe face --face-track $D/face.json
+```
+`edl` prints one `edit.sh` command per clip (kinetic captions, 1080x1920, -14 LUFS). Pick the few clips you would post, not the most the script offers; read each clip's text from first word to last, and check that the title says
+what the clip says. Then `qa_edit.py` and `review_edit.py` per clip as above.
+
 ## Motion graphics and 3D (both modes)
 
 Everything renders through the `html` provider (`render.sh ... --provider html`), so it needs a scene that defines `window.craftvideo.seek(t)` as a
@@ -215,7 +232,7 @@ Type sizes, colour discipline, easing and spring functions, transitions that car
 Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1 (-14 for a reel), peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · layout lint without an ERROR (html scenes) · no blank picture, every
 `qa_frames.py` WARN looked at · the voice read the script (`verify_narration.py`) · every claim in the claims table · sources on the
 end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent · a mascot only where it fits, its review sheet looked at.
-Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer.
+Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer · for a face-following crop, frames from every shot looked at (the speaker in frame, a content shot shown whole) · for clips, `find_clips.py validate` passes and every title is true to its clip.
 
 ## If something breaks
 
@@ -224,6 +241,9 @@ Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, capti
 | `provider 'X' is not usable: ...` | the reason is printed; `providers.sh list`; install it, set its env var, or `providers.sh set` another |
 | `provider 'X' broke the picture contract: ...` | the exact mismatch (size, fps, frames) is printed: fix the scenes or the provider's size/rate handling |
 | `mascot.sh`: "the mascot kit is not installed" | `CRAFTVIDEO_ALLOW_DOWNLOAD=1 bash $S/get_mascot.sh`, or `get_mascot.sh /path/to/ClaudeAnimationBase` after `npm install` there; every file is checked against its pinned SHA-256 |
+| `face_track: OpenCV is not available to this python` or `the YuNet model is missing` | `CRAFTVIDEO_ALLOW_DOWNLOAD=1 bash $S/get_face.sh` once, then run `face_track.py analyze` with `~/.local/share/craftvideo/face/venv/bin/python` (every other step needs no OpenCV) |
+| `edit_ffmpeg: warning: reframe face, but segment N has no face track` | the segment lies outside the track (`analyze --ranges` covered other spans) or `face_track.py apply` was not run: the segment got the centred crop; analyse that span and apply again |
+| a clip starts or ends mid-sentence, `find_clips: ERROR ... mid-sentence` | take the bound from the transcript's sentence edges, or `find_clips.py validate --snap` moves it onto the nearest one |
 | `tighten_voice cannot find the sentence breaks` | the voice runs sentences together: call the engine per sentence with a fixed gap (what `openai` does), or pass `--breaks` |
 | voicestudio `HTTP 503` | another engine holds VRAM: `voicestudio-backend stop`, start again, retry; close ComfyUI or games |
 | narration "too long" | shorten the script (2.6 words/s); or `--speed 1.05` when narrating; never time-stretch afterwards |

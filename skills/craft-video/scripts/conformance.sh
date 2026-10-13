@@ -14,7 +14,9 @@
 #          speech plays) -> analyze -> plan_edit -> edit.sh -> qa_edit.py gates (duration, size, fps, loudness, clicks, captions) AND
 #          ground-truth checks (speech kept, fillers gone, dead air trimmed, picture and sound still in sync, hiss reduced when the
 #          provider claims audio processing), plus a minimal hand-written EDL (source and segments only) and, when FilmCraft is installed, an
-#          OTIO and EDL round trip through its importer
+#          OTIO and EDL round trip through its importer; the ffmpeg provider also runs face_track.py --selftest (footage with a marker that
+#          slides across the frame, reframed to 9:16, must keep the marker near the middle) and find_clips.py --selftest (the long-to-short
+#          flow: candidates, a checked pick, a clip EDL, and captions that stay inside a clip cut on its last word)
 # A provider that is not usable here (missing tool, no TTS_CMD, ...) is reported SKIP with the reason; naming it explicitly
 # makes that a FAIL. Exit 1 if anything FAILs. Needs ffmpeg and a python with numpy + soundfile.
 set -uo pipefail
@@ -134,6 +136,12 @@ test_edit() {
   printf '{"source":"%s","segments":[{"in":1.0,"out":4.2},{"in":6.5,"out":10.0}]}' "$T/footage/rec.mp4" > "$d/min.json"      # the smallest valid EDL, written by hand
   bash "$CV_HERE/edit.sh" "$d/min.json" "$d/min.mp4" --provider "$n" >"$d/minlog" 2>&1 || { row edit "$n" FAIL "a hand-written EDL (source and segments only) was refused: $(tail -1 "$d/minlog")"; return; }
   row edit "$n" PASS "$(sed -n 's/^ok: [^,]*, //p' "$d/log" | tail -1), QA, ground truth and a minimal hand-written EDL passed"
+  if [ "$n" = ffmpeg ]; then          # the face-following crop: footage with a marker that slides across the frame must stay in the middle of the vertical output
+    if "$CV_PY" "$CV_HERE/face_track.py" --selftest >"$d/face" 2>&1; then row edit "$n+face" PASS "$(tail -1 "$d/face" | sed 's/^face_track selftest: ok //')"
+    else row edit "$n+face" FAIL "$(tail -1 "$d/face")"; fi
+    if "$CV_PY" "$CV_HERE/find_clips.py" --selftest >"$d/clips" 2>&1; then row edit "$n+clips" PASS "$(tail -1 "$d/clips" | sed 's/^find_clips selftest: ok //')"     # long to short: candidates, picks, one clip EDL, captions inside the clip
+    else row edit "$n+clips" FAIL "$(tail -1 "$d/clips")"; fi
+  fi
   if [ "$n" = ffmpeg ] && command -v filmcraft-cli >/dev/null; then       # the cut, written as OTIO and as EDL, must survive a real NLE importer
     local res; res="$("$CV_PY" - "$CV_HERE" "$d" <<'PY'
 import json, re, subprocess, sys

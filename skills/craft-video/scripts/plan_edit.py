@@ -4,7 +4,7 @@
   plan_edit.py --source rec.mp4 --analysis analysis.json --out edit.json [--transcript transcript.json]
                [--style talking-head|screen|podcast|raw] [--keep-pause S] [--fillers um,uh,...] [--no-fillers]
                [--punch-in 1.08] [--lufs -16] [--denoise auto|off|N] [--captions|--no-captions] [--music FILE --music-db -22]
-               [--width W --height H --fps F] [--reframe none|crop|blur] [--stabilize]
+               [--width W --height H --fps F] [--reframe none|crop|blur|face [--face-track track.json]] [--stabilize] [--range S-E]
 
 What it decides (every number ends up in edit.json, so the edit is data you can review and adjust):
   1. keep the voiced runs found by analyze.py; shorten a pause down to keep-pause only when that saves at least 0.2 s (MIN_TRIM): a shorter trim buys a visible jump cut for nothing
@@ -78,10 +78,13 @@ def main():
     ap.add_argument("--captions", dest="captions", action="store_true", default=None); ap.add_argument("--no-captions", dest="captions", action="store_false")
     ap.add_argument("--music"); ap.add_argument("--music-db", type=float, default=-22.0)
     ap.add_argument("--width", type=int); ap.add_argument("--height", type=int); ap.add_argument("--fps", type=float)
-    ap.add_argument("--reframe", default="none", choices=["none", "crop", "blur"]); ap.add_argument("--stabilize", action="store_true")
+    ap.add_argument("--reframe", default="none", choices=["none", "crop", "blur", "face"]); ap.add_argument("--stabilize", action="store_true")
+    ap.add_argument("--range", help="plan only S-E seconds of the source, a clip: the pauses and fillers inside it are cut, everything outside is ignored")
+    ap.add_argument("--face-track", help="with --reframe face: the track.json from face_track.py analyze; the crop then follows the face and a slide or screen shot gets the blurred fit")
     a = ap.parse_args()
     st = STYLES[a.style]
     an = json.load(open(a.analysis)); dur = an["duration"]
+    lo, hi = (max(0.0, float(a.range.split("-")[0])), min(dur, float(a.range.split("-")[1]))) if a.range else (0.0, dur)    # --range: plan only this part of the recording (a clip)
     keep = a.keep_pause if a.keep_pause is not None else st["keep_pause"]
     punch = a.punch_in if a.punch_in is not None else st["punch"]
     captions = st["captions"] if a.captions is None else a.captions
@@ -90,18 +93,18 @@ def main():
 
     # ---- 1. voiced runs -> segments with shortened pauses ----
     if keep is None or not an.get("speech"):
-        segs = [[0.0, dur]]
+        segs = [[lo, hi]]
         if keep is not None: notes.append("no speech found: keeping the whole recording")
     else:
-        runs = an["speech"]
+        runs = [[max(s, lo), min(e, hi)] for s, e in an["speech"] if e > lo and s < hi] or [[lo, hi]]
         half = keep / 2
         segs = []
         for i, (s, e) in enumerate(runs):
             gap_prev = s - runs[i - 1][1] if i else None
             gap_next = runs[i + 1][0] - e if i + 1 < len(runs) else None
-            lead = min(0.25, s) if i == 0 else (half if gap_prev > keep + MIN_TRIM else gap_prev / 2)
-            tail = min(0.40, dur - e) if gap_next is None else (half if gap_next > keep + MIN_TRIM else gap_next / 2)
-            segs.append([max(0.0, s - lead), min(dur, e + tail)])
+            lead = min(0.25, s - lo) if i == 0 else (half if gap_prev > keep + MIN_TRIM else gap_prev / 2)
+            tail = min(0.40, hi - e) if gap_next is None else (half if gap_next > keep + MIN_TRIM else gap_next / 2)
+            segs.append([max(lo, s - lead), min(hi, e + tail)])
         merged = [segs[0]]
         for s, e in segs[1:]:
             if s <= merged[-1][1] + 1e-6: merged[-1][1] = max(merged[-1][1], e)
@@ -119,12 +122,13 @@ def main():
             return sum(max(0, min(e, ve) - max(s, vs)) for vs, ve in voiced) / max(1e-6, e - s)
         skipped = 0
         for i, w in enumerate(words):
+            if w["end"] < lo or w["start"] > hi: continue
             n = norm(w["text"]); kind = None
             if n in fset: kind = "filler"
             elif i + 1 < len(words) and n and n == norm(words[i + 1]["text"]) and words[i + 1]["start"] - w["end"] < 0.4: kind = "repeat"
             if not kind: continue
             if overlap(w["start"], w["end"]) < 0.5: skipped += 1; continue          # a mistimed word in silence: do not cut speech for it
-            cuts.append([max(0.0, w["start"] - 0.03), min(dur, w["end"] + 0.05), kind, w["text"]])
+            cuts.append([max(lo, w["start"] - 0.03), min(hi, w["end"] + 0.05), kind, w["text"]])
         if skipped: notes.append(f"{skipped} filler/repeat word(s) skipped: their times did not overlap voiced audio")
         segs = subtract(segs, [[c[0], c[1]] for c in cuts])
     elif a.transcript is None and st["fillers"] and not a.no_fillers:
@@ -133,7 +137,7 @@ def main():
     # ---- 3. snap cuts to the quietest nearby point, 4. drop slivers ----
     if an.get("audio_wav") and os.path.exists(an["audio_wav"]):
         db, hop = energy_db(an["audio_wav"])
-        segs = [[snap(s, db, hop, dur) if s > 0 else s, snap(e, db, hop, dur) if e < dur else e] for s, e in segs]
+        segs = [[snap(s, db, hop, dur) if s > lo else s, snap(e, db, hop, dur) if e < hi else e] for s, e in segs]
     else:
         notes.append("no audio copy found: cuts were not snapped to quiet points")
     segs = [[round(s, 3), round(e, 3)] for s, e in segs if e - s >= a.min_segment]
@@ -159,12 +163,19 @@ def main():
            "captions": {"enabled": captions and bool(a.transcript), "style": "box", "max_chars": 42, "burn": True, "sidecar": "srt"},
            "music": ({"file": os.path.abspath(a.music), "db": a.music_db, "duck": True} if a.music else None),
            "overlays": [], "chapters": [],
-           "stats": {"source_duration": round(dur, 3), "edited_duration": total, "removed": round(dur - total, 3),
+           "stats": {"source_duration": round(dur, 3), "edited_duration": total, "removed": round((hi - lo) - total, 3),
                      "segments": len(out_segs), "filler_cuts": [{"at": round(c[0], 2), "word": c[3], "kind": c[2]} for c in cuts]}}
     if captions and not a.transcript: notes.append("captions requested but there is no transcript: run transcribe.sh first")
+    if a.reframe == "face":
+        if a.face_track:
+            import face_track
+            edl, nface, nfit, nnone = face_track.apply(edl, json.load(open(a.face_track)))
+            out_segs = edl["segments"]; edl["stats"]["segments"] = len(out_segs)
+            notes.append(f"face reframe: {nface} segment(s) follow the face, {nfit} fit the whole frame" + (f", {nnone} not covered by the track" if nnone else ""))
+        else: notes.append("--reframe face without --face-track: every segment gets the centred crop. Run face_track.py analyze, then pass its track.json")
     edl["notes"] = notes
     json.dump(edl, open(a.out, "w"), indent=1)
-    print(f"{a.out}: {dur:.1f}s -> {total:.1f}s ({100 * (dur - total) / dur:.0f}% removed), {len(out_segs)} segments, {len(cuts)} filler/repeat cuts, style {a.style}")
+    print(f"{a.out}: {hi - lo:.1f}s -> {total:.1f}s ({100 * ((hi - lo) - total) / (hi - lo):.0f}% removed), {len(out_segs)} segments, {len(cuts)} filler/repeat cuts, style {a.style}")
     for n in notes: print("  note:", n)
 
 

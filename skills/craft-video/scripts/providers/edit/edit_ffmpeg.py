@@ -6,10 +6,13 @@ clicks), joins them, then polishes:
   audio  highpass, denoise (afftdn), presence EQ, gentle compression, optional music bed that ducks under the voice (sidechain),
          two-pass loudness normalisation to the EDL's LUFS target (true peak -1.5 dB)
   video  per-segment punch-in zoom (hides jump cuts), colour (auto-level, saturation, or a 3D LUT), optional stabilisation (vidstab),
-         reframing to another aspect (crop or blurred fill), rendered overlay clips (alpha), burned-in ASS captions, simple title overlays,
-         constant frame rate
+         reframing to another aspect (crop, blurred fill, or with output.reframe "face" a window that follows the face: each segment carries the
+         "crop" path and "layout" that face_track.py apply wrote, and a split that is not a cut keeps the sound unfaded), rendered overlay clips
+         (alpha), burned-in ASS captions, simple title overlays, constant frame rate
 Audio-only sources are supported (the output is then audio). One filter graph, one video encode (x264 crf 18, yuv420p, bt709)."""
 import json, os, re, subprocess, sys, tempfile
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+from face_track import pan_expr             # the face-following crop path as an ffmpeg expression (stdlib only; OpenCV is imported by `analyze` alone)
 
 
 def run(cmd, **kw):
@@ -67,10 +70,21 @@ def main():
         for i, s in enumerate(segs):
             z = float(s.get("zoom", 1.0))
             zoom = f",crop=iw/{z}:ih/{z}:(iw-iw/{z})/2:(ih-ih/{z})/2" if z > 1.0001 else ""
-            head = f"[sv{i}]trim=start={s['in']:.4f}:end={s['out']:.4f},setpts=PTS-STARTPTS,fps={fps}{zoom}"
-            if reframe == "crop":
+            head = f"[sv{i}]trim=start={s['in']:.4f}:end={s['out']:.4f},setpts=PTS-STARTPTS,fps={fps}"
+            cr = s.get("crop") if reframe == "face" else None
+            if cr:                          # the window follows the face (face_track.py apply): slide along the source, then the punch-in, then the scale
+                sw, sh = pr["v"]["width"], pr["v"]["height"]
+                p = pan_expr(cr["keys"]); x = f"trunc(clip({p},0,{sw - cr['w']})/2)*2" if cr["axis"] == "x" else "0"; y = f"trunc(clip({p},0,{sh - cr['h']})/2)*2" if cr["axis"] == "y" else "0"
+                g.append(f"{head},crop={cr['w']}:{cr['h']}:'{x}':'{y}'{zoom},scale={W}:{H},setsar=1[v{i}]")
+                continue
+            head += zoom
+            mode = reframe
+            if reframe == "face":           # no path for this segment: a content shot (layout fit) gets the blurred fill, anything untracked the centred crop
+                mode = "blur" if s.get("layout") == "fit" else "crop"
+                if not s.get("layout"): print(f"edit_ffmpeg: warning: reframe face, but segment {i + 1} has no face track (face_track.py apply): centred crop", file=sys.stderr)
+            if mode == "crop":
                 g.append(f"{head},crop='min(iw,ih*{W}/{H})':'min(ih,iw*{H}/{W})',scale={W}:{H},setsar=1[v{i}]")
-            elif reframe == "blur":
+            elif mode == "blur":
                 g.append(f"{head},split[bg{i}][fg{i}]")
                 g.append(f"[bg{i}]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},gblur=sigma=40[bb{i}]")
                 g.append(f"[fg{i}]scale={W}:{H}:force_original_aspect_ratio=decrease[ff{i}]")
@@ -114,10 +128,12 @@ def main():
         g, last = [], None
         if has_a:
             g.append(f"[0:a]asplit={N}" + "".join(f"[sa{i}]" for i in range(N)) if N > 1 else "[0:a]anull[sa0]")
+            joined = lambda a, b: abs(a["out"] - b["in"]) < 0.001      # a split that is not a cut (face_track.py splits where the layout changes): no fade, the sound runs on
             for i, s in enumerate(segs):
                 L = s["out"] - s["in"]; fd = min(fade, L / 3)
-                g.append(f"[sa{i}]atrim=start={s['in']:.4f}:end={s['out']:.4f},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,"
-                         f"afade=t=in:st=0:d={fd:.4f},afade=t=out:st={L - fd:.4f}:d={fd:.4f}[a{i}]")
+                fi = 0 if i > 0 and joined(segs[i - 1], s) else fd; fo = 0 if i < N - 1 and joined(s, segs[i + 1]) else fd
+                fades = (f",afade=t=in:st=0:d={fi:.4f}" if fi else "") + (f",afade=t=out:st={L - fo:.4f}:d={fo:.4f}" if fo else "")
+                g.append(f"[sa{i}]atrim=start={s['in']:.4f}:end={s['out']:.4f},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo{fades}[a{i}]")
             g.append("".join(f"[a{i}]" for i in range(N)) + f"concat=n={N}:v=0:a=1[ac]")
             chain = []
             if au.get("highpass"): chain.append(f"highpass=f={au['highpass']}")

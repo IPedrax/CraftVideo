@@ -97,15 +97,16 @@ def main():
     if not words: sys.exit("captions: no words fall inside the kept segments")
     # words the cuts removed that no planned filler cut explains: the sign of a mistimed transcript, so say so instead of silently losing them
     planned = [(c["word"].lower(), c["at"]) for c in (e.get("stats") or {}).get("filler_cuts", [])]
-    lost = [w for w in t["words"] if not any(s["in"] <= (w["start"] + w["end"]) / 2 < s["out"] for s in e["segments"])
+    first, last = min(s["in"] for s in e["segments"]), max(s["out"] for s in e["segments"])      # a clip of a long recording drops everything outside it: that is not a lost word
+    lost = [w for w in t["words"] if first <= w["start"] < last and not any(s["in"] <= (w["start"] + w["end"]) / 2 < s["out"] for s in e["segments"])
             and not any(abs(w["start"] - at) < 0.2 and re.sub(r"\W", "", w["text"].lower()) == re.sub(r"\W", "", wd) for wd, at in planned)]
     if lost: print(f"captions: warning: {len(lost)} word(s) fall in removed spans without being a planned cut: " + ", ".join(f"'{w['text']}' {w['start']:.1f}s" for w in lost[:6]) + (" ..." if len(lost) > 6 else ""), file=sys.stderr)
     cues = cues_from(words, a.max_chars, a.max_lines, a.max_dur, a.max_words)
-    # timing polish: minimum 0.6 s on screen, never overlap the next cue
-    spans = []
+    # timing polish: minimum 0.6 s on screen, never overlap the next cue, and the last one never outlasts the video (a clip cut on its final word has no tail to hold it)
+    spans = []; total = sum(s["out"] - s["in"] for s in e["segments"])
     for i, c in enumerate(cues):
         s, en = c[0]["start"], c[-1]["end"]
-        nxt = cues[i + 1][0]["start"] if i + 1 < len(cues) else en + 1.0
+        nxt = cues[i + 1][0]["start"] if i + 1 < len(cues) else max(en, total) + 0.02
         spans.append((s, min(max(en, s + 0.6), nxt - 0.02) if nxt - 0.02 > s else en))
     with open(a.srt, "w", encoding="utf-8") as f:
         for i, (c, (s, en)) in enumerate(zip(cues, spans), 1):

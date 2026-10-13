@@ -14,6 +14,7 @@ Each folder renders with the commands shown (`S` is `skills/craft-video/scripts`
 | `overlay-lowerthird/` | a transparent lower third (ProRes 4444) to composite onto an edited recording | the `html` provider |
 | `looks-demo/` | one scene styled only by the variables a look injects (`--look NAME`): the same frame in nine art directions | the `html` provider |
 | `mascot/` | Clawd, the Claude Code mascot, walking on, reacting to named words with acted faces and walking off: a cue file against `moments`, rendered as a transparent overlay and laid over a picture | the mascot kit (`get_mascot.sh`), the `html` provider |
+| `clips/` | long recording to shorts: a made-up talk's transcript, the candidates the script proposes, and the picks a person wrote from them; runs with no recording | python3 (numpy for `--audio`) |
 | `continuous-camera/` | a one-take video: four beats are stations in one world, one camera travels between them keyed from the cues (log zoom, parallax, a carrier dot and a drawn route instead of a wipe) | the `html` provider |
 
 ## Commands

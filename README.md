@@ -59,6 +59,18 @@ For a Reel, Short or TikTok the same pipeline runs at 1080x1920 with a different
 | Review | every cut with the words removed, plus the frames before and after each cut | [`review_edit.py`](skills/craft-video/scripts/review_edit.py) |
 | Hand off | the cut as OpenTimelineIO or a CMX 3600 EDL for Resolve, Premiere, Final Cut, Kdenlive | `edit.sh --interchange` |
 
+### Cut shorts out of a long recording
+
+The script proposes and checks; the choosing is a reading of the text, done by Claude with a rubric, so there is no model call, no download and no key in the loop.
+
+| Stage | What happens | Script |
+|---|---|---|
+| Shortlist | sentence-aligned windows from the transcript, scored on the opening line (a question, a number, a story turn), pace, loudness peaks, how the window ends, and a penalty for sponsor reads and lines that need what came before; each score shows its signals | [`find_clips.py candidates`](skills/craft-video/scripts/find_clips.py) |
+| Pick | Claude reads the candidates and the transcript around them and writes `picks.json`: start, end, a 3 to 9 word title, a score for hook, engagement, value and shareability, a reason (rubric in [`clips.md`](skills/craft-video/reference/clips.md)) | |
+| Check | a pick must sit inside the recording, run 15 to 60 s, start and end on sentence edges (`--snap` moves it), have a plain title and not overlap another | `find_clips.py validate` |
+| Follow | a face detector (YuNet through OpenCV, installed on request) finds the speaker; the 9:16 crop follows them with a deadzone and a spring, jumps at scene cuts, and shows a shot with no face (a slide) whole over a blur | [`face_track.py`](skills/craft-video/scripts/face_track.py), [`get_face.sh`](skills/craft-video/scripts/get_face.sh) |
+| Cut | one `edit.json` per clip (pauses and fillers cut inside it, kinetic captions, 1080x1920, -14 LUFS), then the usual `edit.sh` and gates | `find_clips.py edl`, `edit.sh` |
+
 ---
 
 ## <img src="assets/icons/settings.svg" width="20" align="absmiddle" alt="" /> Providers: the tools are swappable
@@ -97,6 +109,8 @@ Choice order: `--provider`, `CRAFTVIDEO_TTS` / `_RENDER` / `_ASSEMBLE` / `_TRANS
 - **Shows its work.** `edit.json` is the edit; `review.md` lists the words removed at every cut; `cuts.jpg` shows the frames either side.
 - **Lays 3D and motion graphics over anything.** Three.js, WebGPU, GSAP and CSS scenes render to frames or to transparent ProRes overlays that composite onto the footage under the captions.
 - **Puts a hand-painted mascot on a video where it fits.** Clawd, the Claude Code mascot, walks on, reacts to the words you name with acted faces, and walks off: a transparent overlay with a review sheet first, laid over a made video or an edit (`reference/mascot.md` says when a mascot fits and when it does not).
+- **Cuts shorts out of a long recording.** A transcript-first shortlist with the signals shown, a rubric for the choice, a check that refuses a clip that starts mid-sentence, then one vertical edit per clip with kinetic captions. The script never decides what is worth posting; it lists candidates, and a clip's title must say what the clip says.
+- **Keeps the speaker in frame at 9:16.** The crop window follows the face instead of sitting in the middle, eases in and out, jumps at scene cuts instead of panning across them, and a slide or screen recording is shown whole over a blurred copy.
 - **Hands off to a real editor.** FilmCraft can write a made video's timeline as OpenTimelineIO, FCPXML, FCP7 XML, EDL, AAF or OMF; an edit can be written as OTIO or EDL.
 - **Discloses and asks.** The share copy states the voiceover is AI-generated; cloning needs the speaker's permission; a hosted provider is used only when you have agreed the text may leave the machine; nothing is posted anywhere.
 
@@ -182,7 +196,9 @@ Status is honest. **Proven**: made and measured in this repo's tests. **Built in
 | Denoise, EQ, compress, normalise to a target loudness | Proven | speech-to-noise gap 37 to 48 dB; loudness within 0.1 LU of -16 |
 | Burned-in captions (`box`, `plain`, `karaoke`), sidecar SRT | Proven | all three styles rendered and inspected; words remapped through the cuts |
 | Jump-cut punch-in zoom | Proven | alternating 1.08 on talking-head |
-| Reframe to 9:16 (blurred fill or centre crop) | Proven | both rendered; face-aware reframing is Possible |
+| Reframe to 9:16 (blurred fill or centre crop) | Proven | both rendered |
+| Reframe to 9:16 following the speaker's face, with a slide or screen shot shown whole | Proven | a real talking-head reel sliding across a landscape canvas: the speaker stays in the middle of the output, a no-face shot gets the blurred fit, the audio has no click at the joins; one face at a time, no stacked two-person layout |
+| Shorts from a long recording: shortlist, picks, vertical clips with kinetic captions | Proven on a short source | two clips cut from a 54 s reel pass every QA gate; a made-up 3.5 minute talk exercises the shortlist and the checks; an hour-long recording, several speakers and languages other than English are untested |
 | Titles, chapters, overlay clips | Proven | rendered and inspected |
 | Music bed ducked under the voice | Built in | runs and passes QA; the ducking depth was not measured |
 | Colour: auto-level, saturation/contrast | Proven | a `.cube` LUT is Built in |
@@ -203,7 +219,7 @@ Status is honest. **Proven**: made and measured in this repo's tests. **Built in
 | vgpu, p5.js generative art, logo animation, interface sounds (other OmniSkill skills) | Possible | not wired or run here |
 | 4K, or 3D scenes over a minute | Possible | nothing caps them; untested |
 
-**Out of scope:** generated live-action or photoreal video, talking-head avatars, lip-sync, photos of real people · creative editing judgement (it cuts speech and silence from measurements; it does not choose shots, build a story from hours of footage or grade by eye) · songs with lyrics or vocals · live or real-time output · posting anywhere (it delivers files, you publish).
+**Out of scope:** generated live-action or photoreal video, talking-head avatars, lip-sync, photos of real people · creative editing judgement beyond what a transcript and the audio show (it cuts speech and silence from measurements and shortlists clips from the words, but it does not see the picture, choose shots, build a story from hours of footage or grade by eye; picking the clips worth posting is Claude's reading, not a measurement) · songs with lyrics or vocals · live or real-time output · posting anywhere (it delivers files, you publish).
 
 ---
 
@@ -224,6 +240,10 @@ Built and tested against a real 30-second video, then generalised:
 - **The Three.js bug that broke determinism.** With a composer and output pass, setting the background through the clear colour double-encoded it (`0x0a0a0b` rendered as `0x38383b`) and made the first frame differ from every later one. `scene.background` fixes it, and the renderer now seeks back to 0 after a run and warns if the frame changed. Also found: ffmpeg 9 removed `-filter_complex_script`; `acompressor`'s `makeup` is linear, not dB (it silently undid the denoise); `drawtext` mangles `%`; a bare `requestAdapter()` returns null on a hybrid-GPU machine; a headless WebGPU canvas reads back empty (render to a texture and read it back); the `sin()` hash differs between GPU and software.
 - **Five reels, measured.** Five public vertical reels about AI-made video were measured with these same tools (pace, cuts, how much of the picture barely changes, tempo, loudness). All five speak within 0.2 s, run 117 to 298 words a minute (median 185, against 156 here), and sit at -14 LUFS after the platform's normalisation. The new picture gate then found that two videos made with this suite barely change for 56% and 66% of their length, with stretches of up to 6.9 s, against 2% to 69% and at most 4.2 s in the reels. Details and what changed in the skill: `reference/short-form.md`, `reference/visual-craft.md`.
 - **The renderer, measured.** With default options the rewritten `html` provider reproduces the previous output frame for frame; `--workers 4` cut a DOM scene from 35 to 9 ms a frame with identical frames (software WebGL gains nothing: it already uses every core); the shutter turns a hard-edged mover into a 16-level soft one; a scene that depended on how often it was seeked is refused before encoding. The layout lint found every planted fault and nothing else, raised no errors on four real scenes of an 87 s video (after a first version raised three false overlap errors, fixed by measuring ink instead of line boxes), and caught a bad body-text size in its own Swiss look.
+- **Clips and the face-following crop, measured.** Two clips (23.6 s and 14.0 s) were cut from a real 54 s talking-head reel placed on a landscape canvas where it slides sideways, so a centred crop would lose the speaker: both came out 1080x1920 with the
+  speaker in the middle, kinetic captions, -14.0 LUFS and every `qa_edit.py` gate passing; the face analysis took 3.5 s and each render 11 to 17 s on the CPU. The work found three faults: a spring that only looks backward made the frame trail a moving face by about 0.9 s (now run forward and backward),
+  a thumbnail difference missed real cuts whose size was below the noise of a moving speaker (now ffmpeg's scene score plus face jumps), and a clip cut on its last word failed the caption gate because the last cue was held for 0.6 s past the end of the video (it now ends with it).
+  On a made-up talk the shortlist never offered the sponsor read or the call to action, and it also offered four windows of pure filler: the script cannot tell a window is empty, so the picks are read by a person or Claude.
 - **Not yet tested:** a second video made from scratch by a fresh agent following only `SKILL.md`; a `--workers` render on a real GPU; the lint on the one scene that needs WebGPU; importing the interchange files into other editors; vertical and square formats for made videos; long recordings; a real img2threejs reconstruction.
 
 ---
@@ -264,6 +284,8 @@ The skill needs one usable provider per stage; `scripts/preflight.sh` reports wh
 | an HTML picture | Node, Playwright and a Chromium (`PLAYWRIGHT_DIR`, `CRAFTVIDEO_CHROMIUM`); a full system Chromium is preferred (the bundled headless shell has no WebGPU) |
 | 3D scenes | three.js (`scripts/get_three.sh <path>` copies it; `CRAFTVIDEO_ALLOW_DOWNLOAD=1` fetches it); `bun` or `esbuild` to bundle TypeScript models; a Vulkan or EGL GPU is optional (`--gpu auto`) |
 | the mascot | the `html` provider and `scripts/get_mascot.sh` (`CRAFTVIDEO_ALLOW_DOWNLOAD=1` fetches the pinned [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase), p5.js and p5.brush; or pass a checkout that has had `npm install`); no GPU needed |
+| the face-following crop | `scripts/get_face.sh` with `CRAFTVIDEO_ALLOW_DOWNLOAD=1`: OpenCV 4.13 (`opencv-python-headless`, Apache-2.0, about 55 MB from PyPI) in its own venv and the 232 KB YuNet model (MIT, from opencv_zoo), both pinned by SHA-256; needs `uv`, `curl` and a python3 with numpy. Only `face_track.py analyze` uses it, no GPU |
+| clips from a long recording | the editing and transcription rows above; `find_clips.py` itself needs only python3 (numpy and ffmpeg for `--audio`) |
 | img2threejs models | a checkout of [img2threejs](https://github.com/img2threejs/img2threejs) (`IMG2THREEJS_HOME`) |
 | transcription | `faster-whisper` in the python `VIDEO_PY` points at, with a model already cached (or `CRAFTVIDEO_ALLOW_DOWNLOAD=1`); or an OpenAI-compatible STT server; or any STT CLI |
 | editing | `ffmpeg` with `loudnorm`, `afftdn`, `sidechaincompress`, `ass` (libass) and `drawtext`; `vidstab` and `prores_ks` are optional (`preflight.sh` checks) |
@@ -280,6 +302,7 @@ Describe the video:
 - *"make it vertical"* · *"re-roll the third scene as deadpan"* · *"use my voice sample, here is the clip and what it says"*
 - *"build it with the HTML renderer and the ffmpeg mixer"* · *"give me the timeline as OTIO for Resolve"*
 - *"edit this recording: cut the dead air and ums, clean up the audio, add captions"* · *"make a vertical version with burned-in captions"*
+- *"cut the best three clips out of this podcast for Reels"* · *"make this landscape talk vertical and keep me in frame"*
 - *"add a 3D intro"* · *"put a lower third over this clip"* · *"turn this product photo into a 3D model and spin it in the video"*
 
 Or go straight in:
@@ -295,6 +318,7 @@ Or go straight in:
 
 **Make:** preflight → research → brag storyboard → script → narrate → tighten (cues) → scenes → review stills → music → render → assemble → finish and QA → deliver.
 **Edit:** preflight → analyze → transcribe → plan (`edit.json`) → review the plan → apply → gate → review cuts → deliver.
+**Clips:** analyze → transcribe → shortlist → pick → check → face track → one `edit.json` per clip → apply → gate → review → deliver.
 
 `SKILL.md` is the mode router, the workflows and the house rules; the scripts do the mechanical parts and the references hold what is only needed when a step goes wrong.
 
@@ -310,12 +334,15 @@ skills/craft-video/
 │   ├── providers.sh  conformance.sh  preflight.sh  lib.sh
 │   ├── tighten_voice.py  split_narration.py  verify_narration.py  anchors.py  synth_music.py  finish.sh  qa_sync.py  qa_frames.py
 │   ├── find_retakes.py  check_looks.py
+│   ├── find_clips.py  face_track.py  get_face.sh  the long-to-short tools (shortlist and checks; the face-following crop and its installer)
+│   ├── mascot.sh  mascot.py  get_mascot.sh       the mascot overlay
 │   └── build.sh  stills.sh  voicestudio-backend  (EffectCraft and VoiceStudio helpers)
 ├── looks/                       nine looks (colour, type, motion, sound roles as JSON) and their README
 ├── jsx/                         EffectCraft helper library + the default brand
-├── reference/                   providers.md, edit.md, motion-graphics.md, visual-craft.md, short-form.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
+├── mascot/                      Clawd's overlay page (the kit itself is installed by get_mascot.sh, not stored here)
+├── reference/                   providers.md, edit.md, clips.md, motion-graphics.md, mascot.md, visual-craft.md, short-form.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
 ├── fixtures/                    tiny inputs for the conformance tests (script, real speech, synthetic footage and its ground-truth check)
-└── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird, looks-demo, continuous-camera
+└── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird, looks-demo, continuous-camera, mascot, clips
 ```
 
 ---
@@ -347,9 +374,13 @@ The storyboard method is from [latent-spaces/brag](https://github.com/latent-spa
 **Studied, not copied.** Design rules, measured numbers and ideas in `reference/visual-craft.md`, `reference/short-form.md`, the render options, the layout lint and the looks come from reading the public repositories of
 [Motionmaxxing](https://github.com/Tejashmakwana/motionmaxxing) (Apache-2.0), [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), [Lemo-Opuscar](https://github.com/lemomo-ai/lemo-opuscar) (MIT, whose
 style notes became the colour and type data in `looks/`) and the HyperFrames student kit (MIT, the idea behind `find_retakes.py`), and from measuring five public reels. [onetake](https://github.com/feitangyuan/onetake)
-(PolyForm Noncommercial) and [Hypit](https://github.com/hypit-ai/hypit) (source-available, commercial use restricted) were read for ideas only. None of their code or prose is in this repository: each tool here is our own
-implementation and its header or reference says where the idea came from. The videos analysed are not included.
+(PolyForm Noncommercial), [Hypit](https://github.com/hypit-ai/hypit) (source-available, commercial use restricted) and [SupoClip](https://github.com/FujiwaraChoki/supoclip) (AGPL-3.0: a transcript-first clip shortlist with a rubric for the choice,
+and a face-following crop with a deadzone and a spring, the ideas behind `find_clips.py` and `face_track.py`) were read for ideas only. None of their code, prompts or prose is in this repository: each tool here is our own
+implementation and its header or reference says where the idea came from. SupoClip asks a language model to pick the clips and downloads from YouTube; `find_clips.py` does neither. The videos analysed are not included.
 
 **Installed, not included.** The mascot is [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) by John Heibel (MIT): Clawd and its painting engine, fetched by `scripts/get_mascot.sh` at a pinned commit with every file checked against its
 SHA-256, together with p5.js (LGPL-2.1) and p5.brush (MIT) from npm. None of it is stored in this repository, only our page (`skills/craft-video/mascot/clawd.html`) and the tools around it. Clawd is a character of Anthropic: it is for videos about
 Claude and its world, never for suggesting that Anthropic endorsed a video.
+
+The face detector is YuNet (MIT, Shiqi Yu) from [opencv_zoo](https://github.com/opencv/opencv_zoo), run through OpenCV (Apache-2.0): `scripts/get_face.sh` fetches the model at a pinned commit and OpenCV's wheel from PyPI, checks both against their SHA-256 and the model's licence,
+and installs them under `~/.local/share/craftvideo/face`. Neither is stored in this repository.

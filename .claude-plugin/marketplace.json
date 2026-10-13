@@ -6,14 +6,14 @@
     "email": "pedro.medeiros@ipedrax.com.br"
   },
   "metadata": {
-    "description": "CraftVideo: make a narrated motion-graphics video from a topic, or edit a recording professionally, with 3D and motion graphics for both. Swappable providers with contract checks and QA gates."
+    "description": "CraftVideo: make a narrated motion-graphics video from a topic, or edit a recording professionally (including shorts cut from a long one, with the crop following the speaker), with 3D and motion graphics for both. Swappable providers with contract checks and QA gates."
   },
   "plugins": [
     {
       "name": "craftvideo",
       "source": "./",
       "category": "media",
-      "description": "Make (research, storyboard, narrate, animate, score, mix, export) or edit (analyze, transcribe, cut dead air and fillers, clean and level audio, caption, reframe), with Three.js 3D, img2threejs models, WebGPU shaders, GSAP, a hand-painted mascot and transparent overlays. Voice, picture, mix, transcription and editing are swappable providers (VoiceStudio, EffectCraft, FilmCraft, ffmpeg, faster-whisper, HTML, OpenAI-compatible and command-line tools) with a conformance suite and editor timeline hand-off."
+      "description": "Make (research, storyboard, narrate, animate, score, mix, export) or edit (analyze, transcribe, cut dead air and fillers, clean and level audio, caption, reframe to vertical following the speaker's face, pick and cut shorts from a long recording), with Three.js 3D, img2threejs models, WebGPU shaders, GSAP, a hand-painted mascot and transparent overlays. Voice, picture, mix, transcription and editing are swappable providers (VoiceStudio, EffectCraft, FilmCraft, ffmpeg, faster-whisper, HTML, OpenAI-compatible and command-line tools) with a conformance suite and editor timeline hand-off."
     }
   ]
 }
