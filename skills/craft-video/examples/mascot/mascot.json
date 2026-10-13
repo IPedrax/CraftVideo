@@ -1,0 +1,13 @@
+{
+  "bpm": 100,
+  "outline": 3,
+  "on": [
+    { "from": "@claim-1.4", "to": "@number.end+1.8", "side": "right", "u": 22, "enter": "happy" },
+    { "from": "@wrap-0.6", "to": 23.5, "side": "right", "u": 24, "enter": "happy" }
+  ],
+  "cues": [
+    ["@claim.end+0.4", "surprised", { "lookX": -0.8 }],
+    ["@number+0.4", "idea", { "lookX": -0.6 }],
+    ["@wrap+0.8", "proud", { "hat": "crown" }]
+  ]
+}

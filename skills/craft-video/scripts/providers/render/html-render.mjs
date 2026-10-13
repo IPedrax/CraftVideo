@@ -15,7 +15,8 @@
 //   node html-render.mjs scene.html out.mp4 ... --look dark-keynote   (a look from looks/*.json, or a path: its colour and type roles reach the scene as window.__CV_SPEC.look
 //                                                                 and as CSS variables --cv-ground, --cv-ink, --cv-accent, --cv-display-font, --cv-display-size ... before the page runs)
 //   node html-render.mjs --check
-// Before encoding, a preflight visits five times forward and then backward and fails if any frame differs the second time (--preflight 0 skips it).
+// Before encoding, a preflight visits five times forward and then backward and fails if any frame differs the second time (--preflight 0 skips it;
+// --preflight-psnr 60 forgives renderer noise: a revisit within 60 dB of the first visit passes).
 // The page is served from a private origin (http://cv.local) out of the scene's folder (--root DIR to widen it), so ES modules,
 // import maps, fetch() and GLB/texture loading all work. If three.js is installed (scripts/get_three.sh) a bare `import "three"` and
 // `import ... from "three/addons/..."` resolve to it automatically; a scene with its own import map keeps it.
@@ -24,7 +25,7 @@
 // (Tejashmakwana/motionmaxxing, Apache-2.0): a 180 degree shutter over 8 sub-frames and luma grain; this is our own implementation. The layout audit is our own
 // code with the same idea as HyperFrames' `check` (heygen-com/hyperframes, Apache-2.0): audit text boxes at sampled times and only report what is held.
 import { createRequire } from "node:module";
-import { spawn, execFileSync } from "node:child_process";
+import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { resolve, join, dirname, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -169,7 +170,7 @@ const [scene, out, ...rest] = argv;
 const o = { width: 1920, height: 1080, fps: 30, duration: 30, gpu: process.env.CRAFTVIDEO_GPU || "off", alpha: "0" };
 for (let i = 0; i < rest.length; i += 2) o[rest[i].replace(/^--/, "")] = rest[i + 1];
 const W = +o.width, H = +o.height, FPS = +o.fps, DUR = +o.duration, N = Math.round(FPS * DUR), ALPHA = o.alpha === "1" || o.alpha === "true";
-const SH = +o.shutter || 0, SUB = Math.max(2, Math.round(+o.subframes || 8)), GRAIN = +o.grain || 0, LINT = o.lint === "1" || o.lint === "true";
+const SH = +o.shutter || 0, SUB = Math.max(2, Math.round(+o.subframes || 8)), GRAIN = +o.grain || 0, LINT = o.lint === "1" || o.lint === "true", PSNR = +o["preflight-psnr"] || 0;
 const WORKERS = (() => { const w = o.workers ?? process.env.CRAFTVIDEO_WORKERS ?? "1"; const n = w === "auto" ? Math.min(4, Math.floor(cpus().length / 3)) : Math.round(+w); return Math.max(1, Math.min(N || 1, n || 1)); })();
 if (ALPHA && (SH || GRAIN)) { console.error("html: --shutter and --grain do not work with --alpha (a transparent overlay)"); process.exit(2); }
 const timeline = o.timeline && existsSync(o.timeline) ? JSON.parse(readFileSync(o.timeline, "utf8")) : null;
@@ -190,6 +191,8 @@ const seen = new Set(), say = (m) => { if (!seen.has(m)) { seen.add(m); console.
 const sceneAbs = resolve(scene), root = resolve(o.root || dirname(sceneAbs)), ORIGIN = "http://cv.local";
 const THREE = [process.env.THREE_DIR, join(process.env.HOME || "", ".local/share/craftvideo/three"), join(root, "node_modules/three"), join(process.cwd(), "node_modules/three")]
   .find((d) => d && existsSync(join(d, "build/three.module.js")));
+const MASCOT = [process.env.MASCOT_DIR, join(process.env.HOME || "", ".local/share/craftvideo/mascot")].find((d) => d && existsSync(join(d, "clawd/clawd.js")));   // scripts/get_mascot.sh
+const MOUNTS = { "/__cv/three/": [THREE, "three.js", "get_three.sh"], "/__cv/mascot/": [MASCOT, "the mascot kit", "get_mascot.sh"] };   // folders outside the scene's, served under a fixed path
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml",
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".avif": "image/avif", ".woff2": "font/woff2",
   ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".wasm": "application/wasm",
@@ -198,10 +201,10 @@ const IMPORTMAP = `<script type="importmap">${JSON.stringify({ imports: { "three
 const inside = (file, dir) => file === dir || file.startsWith(dir + sep);
 await context.route(ORIGIN + "/**", (route) => {
   const p = decodeURIComponent(new URL(route.request().url()).pathname);
-  let file = p.startsWith("/__cv/three/") ? (THREE && join(THREE, p.slice(12))) : join(root, p);
-  const base = p.startsWith("/__cv/three/") ? THREE : root;
+  const mount = Object.keys(MOUNTS).find((m) => p.startsWith(m)), [base, what, getter] = mount ? MOUNTS[mount] : [root];
+  const file = mount ? (base && join(base, p.slice(mount.length))) : join(root, p);
   if (!file || !inside(resolve(file), base) || !existsSync(file) || !statSync(file).isFile()) {
-    if (p !== "/favicon.ico") say(`scene: 404 ${p}${p.startsWith("/__cv/three/") && !THREE ? " (three.js is not installed: run scripts/get_three.sh)" : ""}`);
+    if (p !== "/favicon.ico") say(`scene: 404 ${p}${mount && !base ? ` (${what} is not installed: run scripts/${getter})` : ""}`);
     return route.fulfill({ status: 404, body: "not found" });
   }
   let body = readFileSync(file);
@@ -301,6 +304,15 @@ if (LINT) {
 }
 
 // ---- preflight: the scene must be a pure function of t. Visit five times forward, then backward, and compare: history dependence fails here, in seconds ----
+// Byte-exact by default. A software GPU renderer can disagree with itself by a level in a pixel or two (the mascot's p5.brush frames do, about 100 dB PSNR apart), which is noise and not history:
+// --preflight-psnr DB accepts a revisit whose PSNR against the first visit is at least that (a real dependence on history is far lower: a moved object is about 20 to 40 dB).
+function closeEnough(a, b) {
+  const d = mkdtempSync(join(tmpdir(), "cvpf-")); writeFileSync(join(d, "a.png"), a); writeFileSync(join(d, "b.png"), b);
+  try {
+    const r = spawnSync("ffmpeg", ["-hide_banner", "-i", join(d, "a.png"), "-i", join(d, "b.png"), "-lavfi", "psnr", "-f", "null", "-"], { encoding: "utf8" }), m = /average:(\S+)/.exec(r.stderr || "");
+    return !!m && (m[1] === "inf" || +m[1] >= PSNR);
+  } finally { rmSync(d, { recursive: true, force: true }); }
+}
 const pages = []; for (let k = 0; k < WORKERS; k++) pages.push(await openPage());
 const page0 = pages[0];
 if (o.preflight !== "0" && N > 1) {
@@ -309,7 +321,8 @@ if (o.preflight !== "0" && N > 1) {
   if (N >= 30 && times.length >= 3 && times.every((t) => visited.get(t).equals(visited.get(times[0])))) console.error("html: WARNING: the picture is identical at 0, 25, 50, 75 and 100% of the duration: seek(t) may be ignoring t. (Fine only if a still picture is the intent.)");
   for (const t of [...times].reverse()) {
     await seek(page0, t);
-    if (!(await shot(page0)).equals(visited.get(t))) {
+    const again = await shot(page0);
+    if (!again.equals(visited.get(t)) && !(PSNR && closeEnough(again, visited.get(t)))) {
       console.error(`html: the scene is not a pure function of t: the frame at ${t.toFixed(2)} s came out different when visited a second time, in another order. The scene depends on history (a timer, an unseeded random, an animation clock, state built up frame by frame, or renderer state: see reference/motion-graphics.md). Fix it, or skip this check with --preflight 0.`);
       await browser.close(); process.exit(4);
     }

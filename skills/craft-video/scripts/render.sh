@@ -3,7 +3,7 @@
 #   render.sh scenes out.mp4 [--provider NAME] [--timeline timeline.json] [--width 1920] [--height 1080] [--fps 30] [--duration S]
 #             [--brand brand.jsx] [--project out.proj] [--stills "t1 t2 ..." --sheet sheet.png]
 #             [--alpha 1 (transparent overlay: OUT must be .mov)] [--gpu off|auto|vulkan|egl] [--root DIR]   (html provider)
-#             [--workers N|auto] [--shutter 180 --subframes 8] [--grain 8] [--preflight 0]                    (html provider: speed, motion blur, grain, skip the determinism preflight)
+#             [--workers N|auto] [--shutter 180 --subframes 8] [--grain 8] [--preflight 0] [--preflight-psnr 60]   (html provider: speed, motion blur, grain, skip the determinism preflight or forgive renderer noise)
 #             render.sh scene.html report.json --provider html --lint 1 [--timeline T] [--width W --height H --duration S]   (html provider: audit the layout, write a report, no video)
 # What "scenes" is depends on the provider: .jsx (effectcraft), .html (html), anything (command). --duration defaults to
 # "total" in the timeline, else 30. With --stills it renders review frames into one contact sheet instead of a video.

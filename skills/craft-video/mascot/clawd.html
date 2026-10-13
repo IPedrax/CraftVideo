@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Clawd overlay</title>
+<!--
+  The mascot as a transparent overlay. scripts/mascot.sh renders this page with the html provider and --alpha 1; it is not a scene to edit. The cues arrive
+  as window.__CV_SPEC.timeline.mascot, resolved and checked by scripts/mascot.py. Read reference/mascot.md.
+
+  Clawd and the painting engine are JohnHeibel/ClaudeAnimationBase (MIT), installed by scripts/get_mascot.sh and served from /__cv/mascot/. They are not
+  stored in this repository. p5.js (LGPL-2.1) and p5.brush (MIT) come from npm the same way.
+
+  The kit paints a small canvas, just big enough for the character, and the page pastes that picture at the character's place on the frame: painting a
+  whole 1080p canvas costs three times as much and makes the paper texture slide over the body as it walks.
+  The kit paints on paper and its pigment mixes with whatever is under it, so a transparent canvas gives pale specks and square glows. Each frame is
+  therefore drawn twice, on white and on black, and the difference is the real coverage: alpha = 1 - (white - black), colour = black / alpha.
+  The page is a pure function of t (the provider's preflight checks that).
+-->
+<style>html,body{margin:0;background:transparent;overflow:hidden}canvas{display:block}.p5Canvas{display:none !important}</style>
+</head>
+<body>
+<script>
+  const CV = window.__CV_SPEC, MS = (CV.timeline && CV.timeline.mascot) || { on: [], walk: 0.9, turn: 0.16 };
+  const FW = CV.width, FH = CV.height;                                  // the video frame; the kit's W and H below are its own small canvas
+  const SCALE = Math.min(FW, FH) / 1080;                                // the kit is drawn for 1080 px: sizes and line weights follow the short side
+  const UMAX = Math.max(1, ...MS.on.map((a) => a.u), MS.on.length ? 0 : 22) * SCALE;
+  window.__CV_KIT = { width: Math.ceil(21 * UMAX) + 4, height: Math.ceil(23 * UMAX) + 4 };   // core.js takes W and H from here (the one patched line)
+  const PROJECT = { duration: CV.duration, bpm: MS.bpm || 100, offset: MS.offset || 0 };      // the kit's beat: Clawd moves to this tempo
+  let BG = "white";
+</script>
+<script src="/__cv/mascot/p5.min.js"></script>
+<script src="/__cv/mascot/p5.brush.js"></script>
+<script src="/__cv/mascot/clawd/core.js"></script>
+<script src="/__cv/mascot/clawd/clawd.js"></script>
+<script>
+  const AX = W / 2, AY = H - 3 * UMAX - 2;                              // where the feet stand on the kit's canvas
+  const OUT = document.createElement("canvas"); OUT.width = FW; OUT.height = FH; document.body.appendChild(OUT);
+  const ox = OUT.getContext("2d");
+  const SC = document.createElement("canvas"); SC.width = W; SC.height = H;
+  const sx = SC.getContext("2d", { willReadFrequently: true });
+  let cvDone; const cvReady = new Promise((r) => (cvDone = r));
+
+  async function setup() {                                              // the kit's own setup also builds paper, grain and a font; none of that is wanted here
+    createCanvas(W, H, WEBGL); pixelDensity(1); noLoop();
+    brush.scaleBrushes(5 * SCALE); defineBrushes();
+    glowTex = makeGlowTex();
+    cvDone();
+  }
+  // The first time the renderer draws a mark it comes out a few pixels (a few levels) different from every later time: some state is built lazily. That would make a
+  // frame depend on which one was drawn first, so before any frame is asked for, draw (unseen) the walk, the turn, and every face in the cue file once.
+  async function cvWarm() {
+    const seen = new Set(), at = [];
+    for (const a of MS.on) {
+      at.push(a.from + MS.walk / 2, a.from + MS.walk + MS.turn / 2, a.to - MS.walk / 2);
+      for (const [t, name, over] of a.cues) { const key = name + JSON.stringify(over); if (!seen.has(key)) { seen.add(key); at.push(t + 0.6); } }
+    }
+    for (const t of at) { T = t; const p = cvPose(T), b = p && cvBox(p); if (b) { await cvGrab("white", b); await cvGrab("black", b); } }
+  }
+
+  // Where the mascot is on the frame and how it is posed at video time t: the arguments for clawd() (x and y are the frame's), or null while it is off screen.
+  // It walks in from the edge, turns to face the camera, acts its cues, turns, and walks out. The kit's stroll() and turn() do the walking and the drawn turns.
+  function cvPose(t) {
+    const a = MS.on.find((q) => t >= q.from && t <= q.to);
+    if (!a) return null;
+    const u = a.u * SCALE, dir = a.side === "left" ? -1 : 1;
+    const rest = dir > 0 ? FW * (1 - a.margin) - 5.5 * u : FW * a.margin + 5.5 * u, off = dir > 0 ? FW + 8 * u : -8 * u;
+    const wk = MS.walk, tn = MS.turn, tIn = a.from + wk, tOut = a.to - wk;
+    const walk = (t0, t1, x0, x1) => { const k = stroll(t, t0, t1, x0, x1, u); return { x: k.x, pose: { view: "side", flip: k.flip, walk: k.walk, dy: k.dy } }; };
+    let x = rest, pose = {}, moving = false;
+    if (t < tIn) { const k = walk(a.from, tIn, off, rest); x = k.x; pose = k.pose; moving = true; }
+    else if (t < tIn + tn) pose = turn(t, tIn, tIn + tn, -dir * 0.25, 0);
+    else if (t >= tOut) { const k = walk(tOut, a.to, rest, off); x = k.x; pose = k.pose; moving = true; }
+    else if (t >= tOut - tn) pose = turn(t, tOut - tn, tOut, 0, dir * 0.25);
+    const mood = emotions(t, a.cues);
+    // a pose and a mood that both move dy or sq are added, never replaced
+    return { x, y: FH * a.ground, u, o: { ...mood, ...pose, dy: (mood.dy || 0) * (moving ? 0.35 : 1) + (pose.dy || 0), sq: (mood.sq || 0) + (pose.sq || 0), noShadow: true } };
+  }
+
+  // The region of the kit's canvas that is read back (arms, a hat, a jump and the marks above the head all fit in it), and its offset on the frame; null when it is off the frame.
+  function cvBox(p) {
+    const b = { x: Math.floor(AX - 10.5 * p.u), y: Math.floor(AY - 20 * p.u), w: Math.ceil(21 * p.u), h: Math.ceil(23 * p.u), dx: Math.round(p.x - AX), dy: Math.round(p.y - AY) };
+    return b.x + b.dx < FW && b.x + b.dx + b.w > 0 && b.y + b.dy < FH && b.y + b.dy + b.h > 0 ? b : null;
+  }
+
+  function draw() {
+    background(BG === "white" ? 255 : 0);
+    push(); translate(-W / 2, -H / 2);
+    BOILN = Math.floor(T * BOIL); CLAWD_N = 0; boilSeed("frame"); noiseSeed(77);
+    const p = cvPose(T);
+    if (p) clawd(AX, AY, p.u, p.o);
+    pop();
+  }
+
+  async function cvGrab(bg, b) {
+    BG = bg; await redraw();
+    sx.globalCompositeOperation = "copy"; sx.drawImage(drawingContext.canvas, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h);
+    return sx.getImageData(0, 0, b.w, b.h).data;
+  }
+  // The character's pixels with real transparency, as an ImageData the size of the box. With `cut` (an empty ImageData) it also writes the solid part,
+  // where coverage is over one half, as a flat cream silhouette: faint haze and glow must not get an edge.
+  function cvMatte(w, k, b, cut) {
+    const id = new ImageData(b.w, b.h), o = id.data, c = cut && cut.data, cream = parseInt(PAL.cream.slice(1), 16);
+    for (let i = 0; i < o.length; i += 4) {
+      let a = 1 - ((w[i] - k[i]) + (w[i + 1] - k[i + 1]) + (w[i + 2] - k[i + 2])) / 765;
+      a = a < 0 ? 0 : a > 1 ? 1 : a;
+      if (a < 0.004) continue;
+      const q = 1 / a; o[i] = Math.min(255, k[i] * q); o[i + 1] = Math.min(255, k[i + 1] * q); o[i + 2] = Math.min(255, k[i + 2] * q); o[i + 3] = Math.round(a * 255);
+      if (c && a > 0.5) { c[i] = cream >> 16; c[i + 1] = (cream >> 8) & 255; c[i + 2] = cream & 255; c[i + 3] = 255; }
+    }
+    return id;
+  }
+  // The character as a canvas the size of the box, with an optional paper-cream die-cut edge (MS.outline px at 1080 high): its ink marks and its outline
+  // are dark, and without the edge they vanish on a dark picture.
+  async function cvSticker(b) {
+    const mk = () => { const c = document.createElement("canvas"); c.width = b.w; c.height = b.h; return c; };
+    const r = (MS.outline || 0) * SCALE, cut = r >= 0.5 ? new ImageData(b.w, b.h) : null;
+    const st = mk(); st.getContext("2d").putImageData(cvMatte(await cvGrab("white", b), await cvGrab("black", b), b, cut), 0, 0);
+    if (!cut) return st;
+    const sil = mk(), out = mk(), oc = out.getContext("2d"), n = Math.min(48, Math.max(12, Math.ceil(6.3 * r)));
+    sil.getContext("2d").putImageData(cut, 0, 0);
+    for (let k = 0; k < n; k++) oc.drawImage(sil, r * Math.cos((k * TAU) / n), r * Math.sin((k * TAU) / n));
+    oc.drawImage(st, 0, 0);
+    return out;
+  }
+
+  // review sheet (mascot.sh --sheet): the character at each time in MS.sheet, on a dark ground, labelled, in one picture
+  async function cvSheet(times) {
+    const cols = Math.min(4, times.length), rows = Math.ceil(times.length / cols), cw = FW / cols, ch = FH / rows;
+    ox.fillStyle = "#1b1d27"; ox.fillRect(0, 0, FW, FH); ox.font = `${Math.round(16 * SCALE + 6)}px sans-serif`; ox.textBaseline = "top";
+    for (let i = 0; i < times.length; i++) {
+      T = times[i]; const p = cvPose(T), b = p && cvBox(p), x = (i % cols) * cw, y = Math.floor(i / cols) * ch;
+      if (b) {
+        const k = Math.min((cw - 8) / b.w, (ch - 8) / b.h); ox.drawImage(await cvSticker(b), x + (cw - b.w * k) / 2, y + (ch - b.h * k) / 2, b.w * k, b.h * k);
+      }
+      ox.fillStyle = "#9aa0b4"; ox.fillText(`${T.toFixed(2)} s`, x + 8, y + 6);
+    }
+  }
+
+  // seek(t): t is the time in the clip, which starts at MS.t0 on the video's clock
+  let cvWarmed = null;
+  window.craftvideo = { seek: async (t) => {
+    await cvReady;
+    await (cvWarmed = cvWarmed || cvWarm());
+    if (MS.sheet) return cvSheet(MS.sheet);
+    ox.clearRect(0, 0, FW, FH);
+    T = t + (MS.t0 || 0);
+    const p = cvPose(T), b = p && cvBox(p);
+    if (b) ox.drawImage(await cvSticker(b), b.x + b.dx, b.y + b.dy);
+  } };
+</script>
+</body>
+</html>

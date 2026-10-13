@@ -5,6 +5,7 @@
 #          sentence boundaries in it (that is what the rest of the pipeline needs from a voice)
 # render   a 1 s scene -> render.sh -> silent mp4 of exactly the requested size, fps and frame count; a provider that advertises alpha is
 #          asked for a transparent overlay and the alpha channel is checked; html also renders the three.js example (when three is installed)
+#          and the mascot overlay (when the mascot kit is installed)
 #          and fails if the scene is not deterministic
 # assemble 4 s picture + voice + music -> assemble.sh -> final mp4 with video and audio, same length, loudness near target
 # transcribe  9 s of real speech (fixtures/speech.flac) -> transcribe.sh -> valid word timings in order, inside the audio, and at least
@@ -75,6 +76,21 @@ PY
        && ! grep -q "WARNING" "$T/r3.log"; then row render "$n+three" PASS "three.js scene renders and is deterministic"
     else row render "$n+three" FAIL "$(grep -m1 -E "WARNING|error|404" "$T/r3.log" || tail -1 "$T/r3.log")"; fi
   elif [ "$n" = html ]; then row render "$n+three" SKIP "three.js not installed (scripts/get_three.sh)"; fi
+  if [ "$n" = html ] && [ -f "${MASCOT_DIR:-$HOME/.local/share/craftvideo/mascot}/clawd/clawd.js" ]; then
+    printf '%s\n' '{"walk":0.3,"turn":0.1,"on":[{"from":0.2,"to":2.4}],"cues":[[0.9,"surprised"],[1.5,"idea"]]}' > "$T/mascot.json"
+    if bash "$CV_HERE/mascot.sh" "$T/mascot.json" "$T/mascot.mov" --width 640 --height 360 --fps 12 >"$T/rm.log" 2>&1 \
+       && ! grep -q "WARNING" "$T/rm.log" \
+       && "$CV_PY" - "$T/mascot.mov" <<'PY'
+import subprocess, sys
+import numpy as np
+raw = subprocess.run(["ffmpeg", "-v", "error", "-i", sys.argv[1], "-vf", "format=rgba", "-f", "rawvideo", "-"], capture_output=True).stdout
+a = np.frombuffer(raw, np.uint8).reshape(-1, 360, 640, 4)[..., 3]
+solid = (a == 255).reshape(len(a), -1).mean(axis=1).max()
+sys.exit(0 if 0.005 < solid < 0.15 and (a == 0).mean() > 0.85 else 1)    # a character of a few percent of the frame at its largest, everything else transparent
+PY
+    then row render "$n+mascot" PASS "Clawd overlay: real alpha, a small solid character, passes the preflight (to within renderer noise)"
+    else row render "$n+mascot" FAIL "$(grep -m1 -E "WARNING|error|404|mascot:" "$T/rm.log" || tail -1 "$T/rm.log")"; fi
+  elif [ "$n" = html ]; then row render "$n+mascot" SKIP "mascot kit not installed (scripts/get_mascot.sh)"; fi
 }
 
 test_assemble() {

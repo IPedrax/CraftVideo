@@ -34,6 +34,8 @@ Total length 15 to 30 s is the sweet spot (this suite handles up to about 60 s; 
 - **Show the consequence, then name it; answer whatever you open.**
 - **Shape of time**: the strongest frame sits at 60 to 75% of the length, beats shorten toward it, the last one lingers.
 - **Cut the script tells** that mark text as generated: "Not just X, it's Y", runs of one-word sentences, "Meet X", "the future of".
+- **A mascot takes a corner, so plan it.** If Clawd will be on a beat (`reference/mascot.md`: only where it fits), keep that corner free in the beat's layout, give him an appearance of at least
+  2.9 s, and write the line he reacts to so the reaction can come 0.3 to 0.5 s after it lands.
 - Where this file and that author's taste differ (it bans counters, section chips, captions, disclaimers and any end card held past 1.4 s, which suits brand launch films), ours wins for
   explainers: claims need sources and EXAMPLE labels, reels need captions, a tracker can orient a list.
 

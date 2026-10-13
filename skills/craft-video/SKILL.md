@@ -1,6 +1,6 @@
 ---
 name: craft-video
-description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical, titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or for 3D or motion graphics in a video. Not for generated live-action footage, avatars, lip-sync, or photoreal people."
+description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical, titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, a hand-painted mascot (Clawd), and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or for 3D or motion graphics in a video, or a drawn mascot (Clawd, the Claude Code mascot) on a video where it fits. Not for generated live-action footage, talking-head avatars, lip-sync, or photoreal people."
 ---
 
 # craft-video
@@ -15,6 +15,7 @@ spoken cue. **Edit** takes a recording and cuts, cleans, captions and levels it 
 | a Reel, Short or TikTok (vertical, for social) | **A: make**, with the short-form numbers | `reference/short-form.md`, then "Mode A" |
 | an existing recording cut, cleaned up, captioned, levelled, reframed, or made to look professional | **B: edit** | "Mode B" below, then `reference/edit.md` |
 | 3D, shaders, kinetic type, lower thirds or other motion graphics in either | **C: motion layer** | "Motion graphics and 3D" below, then `reference/motion-graphics.md` |
+| a mascot on the video: Clawd, hand-painted, reacting to the narration | **C: motion layer** | `reference/mascot.md` (it says when a mascot fits and when it does not) |
 
 Both can combine: edit a recording, then lay rendered 3D or motion-graphics overlays on it; or make a video whose picture is a Three.js scene.
 
@@ -29,7 +30,7 @@ deliverables in it, working files in its `work/`. Choose the title in step 2, th
 inside that folder. There is no shared output folder.
 `PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"` (any python with numpy, soundfile, PIL works).
 Worked examples with every input file: `examples/decomp-30s/` (EffectCraft + VoiceStudio + FilmCraft), `examples/html-hello/` (HTML scene), and for the
-motion layer `three-3d`, `img2threejs-bridge`, `webgpu-shader`, `gsap-timeline`, `overlay-lowerthird` (see `examples/README.md`).
+motion layer `three-3d`, `img2threejs-bridge`, `webgpu-shader`, `gsap-timeline`, `overlay-lowerthird`, `mascot` (see `examples/README.md`).
 
 ## Adapting to the tools that exist
 
@@ -66,6 +67,8 @@ All of it, with the contracts and recipes, is in `reference/providers.md`. Read 
    per video, named after its title: never a shared `brag-output/` or `output/` folder.
 10. **A recording belongs to the person in it.** Edit only with their say-so; a hosted transcribe provider uploads the audio, so use one only with consent;
    never cut words so that someone seems to say something they did not (read `review.md`); captions come from the real transcript, never invented.
+11. **A mascot is someone's character.** Clawd is Anthropic's: use it in videos about Claude and its world, never to suggest an endorsement, and leave it out of serious subjects and of
+   anything the user did not ask for and the topic does not call for (`reference/mascot.md`). Its drawing code is MIT (John Heibel) and is installed, not stored here.
 
 ## Mode A: make a video from a topic
 
@@ -79,7 +82,8 @@ one sentence, who is it for, the most surprising true thing, the one-line captio
 **2. Plan (brag) and title.** Choose the video's **title** now: what a viewer would call it, 3 to 8 words in title case, never "brag", "final" or "video".
 It names the folder and the files. Read brag's playbook if OmniSkill is installed (path in `reference/storyboard.md`), then write `plan.md` in the
 video's folder from the template there: angle, tone (default `polished` for factual topics), storyboard table, claims table. Hook first. Each storyboard row says what the viewer
-comes to believe ("Buys") and how much the beat matters (1 to 3, at most a quarter of them 3).
+comes to believe ("Buys") and how much the beat matters (1 to 3, at most a quarter of them 3). If the topic is Claude, agents or developer tooling, decide here whether the
+mascot gets any beats (`reference/mascot.md` says when he fits and when he does not) and keep his corner free in them.
 
 **3. Script.** One sentence per line in `work/script.txt`, optional `label | sentence`. About 2.6 words per second (30 s is 75 to 80 words).
 Spell numbers as they are said ("eighty-four").
@@ -151,6 +155,8 @@ bash $S/assemble.sh --video work/silent.mp4 --voice work/narration.wav --music w
 ```
 `render.sh` takes `--workers 4` (a DOM scene rendered about 4x faster with identical frames; software WebGL gains nothing), and for short scenes with fast type or 3D `--shutter 180 --subframes 8`
 (motion blur) and `--grain 8`: `reference/motion-graphics.md`. A scene that depends on history is refused before encoding (exit 4).
+With a mascot, run `bash $S/mascot.sh work/mascot.json work/mascot.mov --timeline work/timeline.json --over work/silent.mp4 --into work/silent-clawd.mp4` after the render and assemble that
+picture instead (look at its `--sheet` first; `reference/mascot.md`).
 Music sits at -9 dB, mix normalised to -16 LUFS. Hand-off to another editor: add `--provider filmcraft --interchange otio --interchange-out work/edit.otio`
 (formats edl, xml, fcpxml, otio, aaf, omf); media is referenced by absolute path.
 
@@ -198,6 +204,7 @@ Everything renders through the `html` provider (`render.sh ... --provider html`)
 | shader or generative background | WebGPU/WGSL, or a WebGL fragment shader | `examples/webgpu-shader/` |
 | kinetic type, UI motion, counters, SVG drawing | GSAP on a paused timeline, or CSS/WAAPI | `examples/gsap-timeline/` |
 | lower third or sting over footage | `render.sh ... out.mov --alpha 1`, then an `overlays` clip in `edit.json` | `examples/overlay-lowerthird/` |
+| a character that reacts to the narration (Clawd, the Claude Code mascot) | `bash $S/get_mascot.sh` once, then `mascot.sh mascot.json out.mov --sheet` to review and without it to render; `--over picture.mp4 --into out.mp4` lays it over a made video | `examples/mascot/`, `reference/mascot.md` |
 
 Review motion-graphics stills before the full render (`--stills`), keep lower thirds above the bottom 20% when captions are on, and render a whole
 video on one backend (GPU or software, not both). A scene that is not deterministic is refused by the preflight (exit 4); a `WARNING` after the run means the same: treat it as a failed render.
@@ -207,7 +214,7 @@ Type sizes, colour discipline, easing and spring functions, transitions that car
 
 Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1 (-14 for a reel), peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · layout lint without an ERROR (html scenes) · no blank picture, every
 `qa_frames.py` WARN looked at · the voice read the script (`verify_narration.py`) · every claim in the claims table · sources on the
-end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent.
+end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent · a mascot only where it fits, its review sheet looked at.
 Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer.
 
 ## If something breaks
@@ -216,6 +223,7 @@ Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, capti
 |---|---|
 | `provider 'X' is not usable: ...` | the reason is printed; `providers.sh list`; install it, set its env var, or `providers.sh set` another |
 | `provider 'X' broke the picture contract: ...` | the exact mismatch (size, fps, frames) is printed: fix the scenes or the provider's size/rate handling |
+| `mascot.sh`: "the mascot kit is not installed" | `CRAFTVIDEO_ALLOW_DOWNLOAD=1 bash $S/get_mascot.sh`, or `get_mascot.sh /path/to/ClaudeAnimationBase` after `npm install` there; every file is checked against its pinned SHA-256 |
 | `tighten_voice cannot find the sentence breaks` | the voice runs sentences together: call the engine per sentence with a fixed gap (what `openai` does), or pass `--breaks` |
 | voicestudio `HTTP 503` | another engine holds VRAM: `voicestudio-backend stop`, start again, retry; close ComfyUI or games |
 | narration "too long" | shorten the script (2.6 words/s); or `--speed 1.05` when narrating; never time-stretch afterwards |

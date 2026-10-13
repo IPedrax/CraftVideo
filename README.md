@@ -96,6 +96,7 @@ Choice order: `--provider`, `CRAFTVIDEO_TTS` / `_RENDER` / `_ASSEMBLE` / `_TRANS
 - **Edits from measurements, not guesses.** Speech is found against each recording's own noise floor; cuts snap to the quietest point within 40 ms so they land in a breath; a pause is only cut when that saves at least 0.2 s, because a smaller trim buys a visible jump cut for nothing.
 - **Shows its work.** `edit.json` is the edit; `review.md` lists the words removed at every cut; `cuts.jpg` shows the frames either side.
 - **Lays 3D and motion graphics over anything.** Three.js, WebGPU, GSAP and CSS scenes render to frames or to transparent ProRes overlays that composite onto the footage under the captions.
+- **Puts a hand-painted mascot on a video where it fits.** Clawd, the Claude Code mascot, walks on, reacts to the words you name with acted faces, and walks off: a transparent overlay with a review sheet first, laid over a made video or an edit (`reference/mascot.md` says when a mascot fits and when it does not).
 - **Hands off to a real editor.** FilmCraft can write a made video's timeline as OpenTimelineIO, FCPXML, FCP7 XML, EDL, AAF or OMF; an edit can be written as OTIO or EDL.
 - **Discloses and asks.** The share copy states the voiceover is AI-generated; cloning needs the speaker's permission; a hosted provider is used only when you have agreed the text may leave the machine; nothing is posted anywhere.
 
@@ -202,7 +203,7 @@ Status is honest. **Proven**: made and measured in this repo's tests. **Built in
 | vgpu, p5.js generative art, logo animation, interface sounds (other OmniSkill skills) | Possible | not wired or run here |
 | 4K, or 3D scenes over a minute | Possible | nothing caps them; untested |
 
-**Out of scope:** generated live-action or photoreal video, avatars, lip-sync, photos of real people · creative editing judgement (it cuts speech and silence from measurements; it does not choose shots, build a story from hours of footage or grade by eye) · songs with lyrics or vocals · live or real-time output · posting anywhere (it delivers files, you publish).
+**Out of scope:** generated live-action or photoreal video, talking-head avatars, lip-sync, photos of real people · creative editing judgement (it cuts speech and silence from measurements; it does not choose shots, build a story from hours of footage or grade by eye) · songs with lyrics or vocals · live or real-time output · posting anywhere (it delivers files, you publish).
 
 ---
 
@@ -262,6 +263,7 @@ The skill needs one usable provider per stage; `scripts/preflight.sh` reports wh
 | the default picture | `effectcraft-cli` from the [storytold/effectcraft](https://github.com/storytold/effectcraft) release tarball |
 | an HTML picture | Node, Playwright and a Chromium (`PLAYWRIGHT_DIR`, `CRAFTVIDEO_CHROMIUM`); a full system Chromium is preferred (the bundled headless shell has no WebGPU) |
 | 3D scenes | three.js (`scripts/get_three.sh <path>` copies it; `CRAFTVIDEO_ALLOW_DOWNLOAD=1` fetches it); `bun` or `esbuild` to bundle TypeScript models; a Vulkan or EGL GPU is optional (`--gpu auto`) |
+| the mascot | the `html` provider and `scripts/get_mascot.sh` (`CRAFTVIDEO_ALLOW_DOWNLOAD=1` fetches the pinned [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase), p5.js and p5.brush; or pass a checkout that has had `npm install`); no GPU needed |
 | img2threejs models | a checkout of [img2threejs](https://github.com/img2threejs/img2threejs) (`IMG2THREEJS_HOME`) |
 | transcription | `faster-whisper` in the python `VIDEO_PY` points at, with a model already cached (or `CRAFTVIDEO_ALLOW_DOWNLOAD=1`); or an OpenAI-compatible STT server; or any STT CLI |
 | editing | `ffmpeg` with `loudnorm`, `afftdn`, `sidechaincompress`, `ass` (libass) and `drawtext`; `vidstab` and `prores_ks` are optional (`preflight.sh` checks) |
@@ -347,3 +349,7 @@ The storyboard method is from [latent-spaces/brag](https://github.com/latent-spa
 style notes became the colour and type data in `looks/`) and the HyperFrames student kit (MIT, the idea behind `find_retakes.py`), and from measuring five public reels. [onetake](https://github.com/feitangyuan/onetake)
 (PolyForm Noncommercial) and [Hypit](https://github.com/hypit-ai/hypit) (source-available, commercial use restricted) were read for ideas only. None of their code or prose is in this repository: each tool here is our own
 implementation and its header or reference says where the idea came from. The videos analysed are not included.
+
+**Installed, not included.** The mascot is [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) by John Heibel (MIT): Clawd and its painting engine, fetched by `scripts/get_mascot.sh` at a pinned commit with every file checked against its
+SHA-256, together with p5.js (LGPL-2.1) and p5.brush (MIT) from npm. None of it is stored in this repository, only our page (`skills/craft-video/mascot/clawd.html`) and the tools around it. Clawd is a character of Anthropic: it is for videos about
+Claude and its world, never for suggesting that Anthropic endorsed a video.

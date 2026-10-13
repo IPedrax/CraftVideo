@@ -13,6 +13,7 @@ Each folder renders with the commands shown (`S` is `skills/craft-video/scripts`
 | `gsap-timeline/` | a GSAP timeline on cues: staggered type, a counter, an SVG rule drawing | GSAP (`gsap.min.js` next to the scene, not shipped) |
 | `overlay-lowerthird/` | a transparent lower third (ProRes 4444) to composite onto an edited recording | the `html` provider |
 | `looks-demo/` | one scene styled only by the variables a look injects (`--look NAME`): the same frame in nine art directions | the `html` provider |
+| `mascot/` | Clawd, the Claude Code mascot, walking on, reacting to named words with acted faces and walking off: a cue file against `moments`, rendered as a transparent overlay and laid over a picture | the mascot kit (`get_mascot.sh`), the `html` provider |
 | `continuous-camera/` | a one-take video: four beats are stations in one world, one camera travels between them keyed from the cues (log zoom, parallax, a carrier dot and a drawn route instead of a wipe) | the `html` provider |
 
 ## Commands
@@ -43,6 +44,11 @@ bash $S/render.sh looks-demo/scene.html lint.json --provider html --width 1920 -
 
 # one camera through four beats (a DOM scene: --workers 3 renders it about three times as fast; the identical video)
 bash $S/render.sh continuous-camera/scene.html out.mp4 --provider html --timeline continuous-camera/timeline.json --width 1920 --height 1080 --fps 30 --duration 14 --workers 3
+```
+
+# the mascot (once: CRAFTVIDEO_ALLOW_DOWNLOAD=1 bash $S/get_mascot.sh): a labelled review sheet first, then the clip laid over a picture that has sound
+bash $S/mascot.sh mascot/mascot.json out.mov --timeline mascot/timeline.json --sheet sheet.png
+bash $S/mascot.sh mascot/mascot.json clawd.mov --timeline mascot/timeline.json --width 1920 --height 1080 --fps 30 --workers auto --over picture.mp4 --into picture-clawd.mp4
 ```
 
 Review stills first, as always: add `--stills "0.3 1.5 3.0 4.8" --sheet sheet.png` instead of a duration to get a contact sheet.

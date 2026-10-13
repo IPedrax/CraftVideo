@@ -12,7 +12,8 @@ Pick the tool by what the shot needs:
 | Typography, UI-style motion, staggers, counters, SVG drawing | **GSAP** on a paused timeline (`examples/gsap-timeline/`), or CSS/WAAPI (`examples/html-css-animation/`) | Proven |
 | A lower third, bug, callout or title sting over footage | render with `--alpha 1` (ProRes 4444), place with an `overlays` clip (`examples/overlay-lowerthird/`) | Proven end to end |
 | A 3D object floating over footage | the Three.js scene rendered with `--alpha 1` (`examples/three-3d/`), placed the same way | Proven end to end (no bloom in alpha mode) |
-| Seeded generative art (p5.js), a logo or its animation | the OmniSkill `algorithmic-art` / `logo-design` skills make the assets, the scene plays them | Possible: not wired or run here |
+| A hand-painted character that reacts to the narration (Clawd, the Claude Code mascot) | `mascot.sh`: a p5.js + p5.brush kit painted on a small canvas, two draws a frame (white and black) for real alpha, a transparent overlay (`reference/mascot.md`, `examples/mascot/`) | Proven: rendered, reproducible to within a level in a pixel or two (software renderer noise), composited over a picture with its sound kept |
+| Seeded generative art (p5.js), a logo or its animation | the OmniSkill `algorithmic-art` / `logo-design` skills make the assets, the scene plays them | Possible: not wired or run here (p5.js itself runs in the provider: the mascot page is the proof) |
 | After Effects-style compositions with 306 effects | the `effectcraft` provider | Proven (the first video) |
 | Interface sound for the shot | OmniSkill `uisfx` (synthesised locally), mixed in with `music` or the editor | Possible: not run here |
 
@@ -84,6 +85,7 @@ All on the `html` provider, all optional, none changes what you get by default (
 | `--shutter 180 --subframes 8` | motion blur: renders 8 sub-frames across a 180 degree shutter and averages them per frame (ffmpeg `tmix`, 16-bit); a moment where nothing moves costs 2 captures, not 8; not with `--alpha` | a box moving 20 px a frame went from a crisp edge (2 grey levels on the row) to a soft one (16). The same trivial scene took 36 ms a frame without it, 67 with 4 sub-frames and 184 with 8 (a busy machine, so rough). Use it on short scenes with fast type or 3D, not on a whole long video |
 | `--grain S` | luma film grain, a fixed seed, so a re-render is identical; not with `--alpha` | luma std is about S/3 of 255 and survives x264 at crf 14: 8 is subtle, 16 clearly visible |
 | `--preflight 0` | skips the determinism preflight (five times forward, then backward; it also warns when the picture is identical at all five, which means `seek(t)` may be ignoring `t`) | on a scene that depended on how often `seek` was called it stopped before encoding, exit 4 |
+| `--preflight-psnr 60` | keeps the preflight but forgives renderer noise: a revisit within 60 dB PSNR of the first visit passes (byte-exact otherwise) | p5.brush frames on the software renderer differ by a level in a pixel or two, about 100 dB apart (the mascot passes this flag); a moved object is 20 to 40 dB |
 | `--lint 1` | no video: audits the layout and writes a JSON report, exit 1 on any error | below |
 
 ```bash
