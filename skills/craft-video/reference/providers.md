@@ -128,7 +128,9 @@ Set a template and the matching `command` provider does the rest (values are she
 **Transcribe** (set `CRAFTVIDEO_TRANSCRIBE=command` plus `STT_CMD`, or `openai` for servers):
 - whisper.cpp: `whisper-cli -m /models/ggml-small.en.bin -f {audio} -osrt -of {out}.tmp && mv {out}.tmp.srt {out}`. Its SRT is cue-level, so word times are
   estimated (`approx_word_times`): fine for captions, not for precise filler cuts. Sketch, not run here.
-- faster-whisper from another install: set `WHISPER_MODEL`, `WHISPER_DEVICE`; models must already be cached unless `CRAFTVIDEO_ALLOW_DOWNLOAD=1`. Tested.
+- faster-whisper from another install: set `WHISPER_MODEL`, `WHISPER_DEVICE`; models must already be present unless `CRAFTVIDEO_ALLOW_DOWNLOAD=1`. Without
+  `WHISPER_MODEL` it uses the biggest of `large-v3`, `medium`, `small` it finds, in `WHISPER_DIR/faster-whisper-<name>` (default `/mnt/ai/Whisper`) or the Hugging Face
+  cache. To put a model there: `snapshot_download("Systran/faster-whisper-large-v3", local_dir="/mnt/ai/Whisper/faster-whisper-large-v3")` (3.09 GB). Tested.
 - A hosted STT API: wrap `curl` in a script and point `STT_CMD` at it (hosted: **the audio leaves the machine**). Tested: the template mechanism only.
 
 **Picture:**

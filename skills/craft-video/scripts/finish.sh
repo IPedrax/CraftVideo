@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# finish.sh final.mp4 outdir --title "A Proper Title" [--filename name] [--poster-time 1.6] [--voice narration.wav]
+# finish.sh final.mp4 outdir --title "A Proper Title" [--filename name] [--poster-time 1.6] [--voice narration.wav] [--lufs -16]
 # brag's delivery step: pull the strongest SETTLED frame to <name>.jpg and bake it in as frame 0 of <name>.mp4
 # (replace frame 0, never add a frame, so duration and audio sync stay identical), then run the QA gates.
 # --title is required: it is the title written into the video's metadata (players and uploads show it) and, slugified, the file name
 # (ai-is-taking-games-apart.mp4). --filename overrides the file name only (no extension). Accents are folded to plain letters.
+# --lufs is the loudness the gate expects, +/- 1 (default -16; use -14 for a reel, which the platform normalises to about that). The picture is checked too
+# (qa_frames.py): a blank picture FAILS, long still stretches and a long end hold are printed as WARN.
 set -euo pipefail
-IN="$(realpath "${1:?usage: finish.sh final.mp4 outdir --title \"A Proper Title\" [--filename name] [--poster-time 1.6] [--voice narration.wav]}")"; OUTDIR="$(realpath -m "${2:?outdir}")"; shift 2
-PT=1.6; VOICE=""; TITLE=""; FNAME=""
+IN="$(realpath "${1:?usage: finish.sh final.mp4 outdir --title \"A Proper Title\" [--filename name] [--poster-time 1.6] [--voice narration.wav] [--lufs -16]}")"; OUTDIR="$(realpath -m "${2:?outdir}")"; shift 2
+PT=1.6; VOICE=""; TITLE=""; FNAME=""; TARGET=-16
 while [ $# -gt 0 ]; do
   [ $# -ge 2 ] || { echo "option $1 needs a value" >&2; exit 2; }
-  case "$1" in --poster-time) PT="$2";; --voice) VOICE="$(realpath "$2")";; --title) TITLE="$2";; --filename) FNAME="$2";; *) echo "unknown option $1" >&2; exit 2;; esac; shift 2
+  case "$1" in --poster-time) PT="$2";; --voice) VOICE="$(realpath "$2")";; --title) TITLE="$2";; --filename) FNAME="$2";; --lufs) TARGET="$2";; *) echo "unknown option $1" >&2; exit 2;; esac; shift 2
 done
 [ -n "$TITLE" ] || { echo "finish.sh: --title is required: the finished video is named after it (never 'brag.mp4'). Example: --title \"AI Is Taking Games Apart\"" >&2; exit 2; }
 BASE="$(python3 - "${FNAME:-$TITLE}" <<'PY'
@@ -38,7 +40,7 @@ echo "video: ${W}x${H} @ $FPS, $FR frames, ${DUR}s"
 LOUD=$(ffmpeg -hide_banner -nostats -i "$VID" -vn -af ebur128=peak=true -f null - 2>&1 | grep -E '^\s+(I:|Peak:)' | tail -2 | tr -s ' ' | tr '\n' ' ')
 echo "loudness: $LOUD"
 LUFS=$(echo "$LOUD" | sed -E 's/.*I: (-?[0-9.]+) LUFS.*/\1/'); PEAK=$(echo "$LOUD" | sed -E 's/.*Peak: (-?[0-9.]+) dBFS.*/\1/')
-awk -v l="$LUFS" 'BEGIN{exit !(l>=-17 && l<=-15)}' && echo "  PASS loudness within -16 +/- 1 LUFS" || { echo "  FAIL loudness $LUFS LUFS"; bad=1; }
+awk -v l="$LUFS" -v t="$TARGET" 'BEGIN{exit !(l>=t-1 && l<=t+1)}' && echo "  PASS loudness within $TARGET +/- 1 LUFS" || { echo "  FAIL loudness $LUFS LUFS (wanted $TARGET +/- 1)"; bad=1; }
 awk -v p="$PEAK" 'BEGIN{exit !(p<=-1.0)}' && echo "  PASS peak <= -1 dBFS" || { echo "  FAIL peak $PEAK dBFS (clipping risk)"; bad=1; }
 if [ -n "$VOICE" ]; then "$PY" "$HERE/qa_sync.py" "$VID" "$VOICE" && echo "  PASS sync" || { echo "  FAIL sync"; bad=1; }; fi
 "$PY" - "$POSTER" "$VID" <<'EOF'
@@ -51,4 +53,5 @@ d = abs(p - f0).mean(); print(f"  {'PASS' if d < 3 else 'FAIL'} poster is frame 
 sys.exit(0 if d < 3 else 1)
 EOF
 [ $? -eq 0 ] || bad=1
+"$PY" "$HERE/qa_frames.py" "$VID" || bad=1
 [ $bad -eq 0 ] && echo "QA passed" || { echo "QA FAILED"; exit 1; }

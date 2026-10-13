@@ -1,6 +1,6 @@
 ---
 name: craft-video
-description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical, titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video, a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or for 3D or motion graphics in a video. Not for generated live-action footage, avatars, lip-sync, or photoreal people."
+description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical, titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or for 3D or motion graphics in a video. Not for generated live-action footage, avatars, lip-sync, or photoreal people."
 ---
 
 # craft-video
@@ -12,6 +12,7 @@ spoken cue. **Edit** takes a recording and cuts, cleans, captions and levels it 
 | The user wants | Mode | Start at |
 |---|---|---|
 | a video from a topic, product or news item (the picture is graphics, text, numbers, 3D) | **A: make** | "Mode A" below |
+| a Reel, Short or TikTok (vertical, for social) | **A: make**, with the short-form numbers | `reference/short-form.md`, then "Mode A" |
 | an existing recording cut, cleaned up, captioned, levelled, reframed, or made to look professional | **B: edit** | "Mode B" below, then `reference/edit.md` |
 | 3D, shaders, kinetic type, lower thirds or other motion graphics in either | **C: motion layer** | "Motion graphics and 3D" below, then `reference/motion-graphics.md` |
 
@@ -91,6 +92,10 @@ Write a name the voice may get wrong the way it should sound ("Keyside" for Quay
 first). Another language: `--language Portuguese`. Your own recording: `CRAFTVIDEO_NARRATION_FILE=take.wav bash $S/narrate.sh ... --provider file`.
 Fast preview with no model: `--provider dryrun`. With voicestudio the first call after a start spends ~90 s on one-time compilation.
 
+**Verify the words** before tightening: `$PY $S/verify_narration.py --audio work/narration_raw.wav --script work/script.txt --language en` transcribes the take and prints every script
+line that came back different, with what was expected and what was heard ("mostly in force" came back as "enforced"). Reword or regenerate the lines it fails; a name the voice gets
+wrong is respelled in the script and passed as `--ignore keyside`. Numbers are checked for presence, not value: listen to those.
+
 **5. Tighten and get the cues.**
 ```bash
 $PY $S/tighten_voice.py --raw work/narration_raw.wav --script work/script.txt --out work/narration.wav --timeline work/timeline.json --target 30
@@ -124,6 +129,10 @@ bash $S/render.sh work/scenes.jsx work/sheet.png --timeline work/timeline.json -
 ```
 Then read the sheet image. Check the creative laws: readable ~0.3 s per word, hook strong in 2 s, no text leaving its panel, every claim supportable.
 
+**7b. Critic pass.** Score every scene out of 10 against the rubric in `reference/visual-craft.md` (hook, hierarchy, readable, alive, sound, truth), write the scores in `plan.md`,
+fix anything under 8 and re-render only those scenes. Type sizes, easing, transitions and finish are in the same file. Anything for social (Reel, Short, TikTok): read
+`reference/short-form.md` first (pace, lead-in, captions, a loudness of -14).
+
 **8. Music.** Write `work/cues.json` (format in the `synth_music.py` docstring; hits on scene changes, arp density by scene, risers, count-up
 ticks, chord per bar), then `$PY $S/synth_music.py --cues work/cues.json --narration work/narration.wav --out work/music.wav`.
 Or bring your own music file and skip this step (it will not be ducked under the voice unless you duck it).
@@ -138,7 +147,8 @@ Music sits at -9 dB, mix normalised to -16 LUFS. Hand-off to another editor: add
 
 **10. Finish and QA.** `bash $S/finish.sh work/final.mp4 . --title "AI Is Taking Games Apart" --poster-time 1.6 --voice work/narration.wav` (run inside the
 video's folder, so `.` is that folder) bakes the poster into frame 0, names the files after the title (`ai-is-taking-games-apart.mp4` and `.jpg`), writes the title into the video's metadata, and gates loudness
-(-16 +/- 1 LUFS), peak (<= -1 dBFS), narration sync (<= 40 ms), poster-equals-frame-0 and the embedded title. `--title` is required; `--filename`
+(-16 +/- 1 LUFS, or `--lufs -14` for a reel), peak (<= -1 dBFS), narration sync (<= 40 ms), poster-equals-frame-0, the embedded title, and the picture (`qa_frames.py`: a blank
+picture FAILs; stretches where it barely changes and a long end hold print as WARN, so look at each one and keep it on purpose or add motion). `--title` is required; `--filename`
 overrides only the file name. The gates are provider-independent. A FAIL means fix and re-run, not ship.
 
 **11. Deliver.** Write `share-copy.txt` in the video's folder (1 to 3 sentences, specific, postable as-is, includes the AI-voiceover disclosure; never
@@ -181,10 +191,12 @@ Everything renders through the `html` provider (`render.sh ... --provider html`)
 
 Review motion-graphics stills before the full render (`--stills`), keep lower thirds above the bottom 20% when captions are on, and render a whole
 video on one backend (GPU or software, not both). The renderer warns if a scene is not deterministic: treat that warning as a failed render.
+Type sizes, colour discipline, easing and spring functions, transitions that carry something across a cut, and the critic rubric: `reference/visual-craft.md`.
 
 ## Quality gates (all must hold)
 
-Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1, peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · every claim in the claims table · sources on the
+Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1 (-14 for a reel), peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · no blank picture, every
+`qa_frames.py` WARN looked at · the voice read the script (`verify_narration.py`) · every claim in the claims table · sources on the
 end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent.
 Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer.
 
@@ -208,6 +220,7 @@ Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, capti
 | `no WebGPU adapter` or a white WebGPU frame | request the adapter with `powerPreference` and fall back to `forceFallbackAdapter`; read back to a 2D canvas instead of presenting (`examples/webgpu-shader/`) |
 | `scene: 404 /__cv/three/...` | three.js is not installed: `bash $S/get_three.sh <path-to-three>` |
 | `narrate.sh` finishes (the file exists) but the command never returns | the backend daemon inherited a captured pipe: run `narrate.sh` from the shell (output to a log file), not through `subprocess.run(capture_output=True)` |
+| `no usable transcribe provider` or `whisper model ... is not downloaded` | no faster-whisper model is where it looks: put one in `/mnt/ai/Whisper/faster-whisper-<name>` (or set `WHISPER_DIR`), or in the Hugging Face cache, or set `WHISPER_MODEL`; `providers.sh list` names what is missing (`reference/providers.md`) |
 | new MCP tools not visible | servers registered mid-session load only in a new chat; the scripts use CLIs and REST, same engines |
 
 When the `effectcraft`, `filmcraft` or `voicestudio` MCP tools are available in the session they can replace the CLI calls (same commands,

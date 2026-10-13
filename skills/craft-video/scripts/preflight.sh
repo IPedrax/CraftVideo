@@ -59,7 +59,7 @@ if [ "${CHOSEN[edit]:-}" = ffmpeg ]; then
 fi
 if [ "${CHOSEN[transcribe]:-}" = faster-whisper ]; then
   echo "transcription (faster-whisper)"
-  info "model ${WHISPER_MODEL:-small}; it must already be in the cache or CRAFTVIDEO_ALLOW_DOWNLOAD=1 lets it fetch one"
+  info "model ${WHISPER_MODEL:-the biggest of large-v3, medium, small found in ${WHISPER_DIR:-/mnt/ai/Whisper} or the Hugging Face cache}; CRAFTVIDEO_ALLOW_DOWNLOAD=1 lets it fetch one it lacks"
   command -v nvidia-smi >/dev/null && info "GPU present: runs on it (a 30 s clip takes about a second); otherwise CPU" || info "no GPU: CPU transcription is several times slower than real time on the larger models"
 fi
 if cv_usable render html; then

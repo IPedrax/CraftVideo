@@ -36,12 +36,15 @@ Built for **Claude Code**. Developed and tested on Linux with an NVIDIA GPU (see
 | Preflight | check the core tools, resolve a provider per stage, check extras for what was chosen | [`preflight.sh`](skills/craft-video/scripts/preflight.sh) |
 | Plan | primary-source research, brag storyboard, claims table | [`storyboard.md`](skills/craft-video/reference/storyboard.md) |
 | Narrate | script (one sentence per line) to speech, any TTS provider, normalised to 48 kHz mono | [`narrate.sh`](skills/craft-video/scripts/narrate.sh) |
+| Verify | transcribe the take and list every script line that came back different (a dropped, added or swapped word) | [`verify_narration.py`](skills/craft-video/scripts/verify_narration.py) |
 | Tighten | land on an exact length, find every sentence start, write the cues (when the voice runs sentences together, [`split_narration.py`](skills/craft-video/scripts/split_narration.py) finds the boundaries from word times first) | [`tighten_voice.py`](skills/craft-video/scripts/tighten_voice.py) |
 | Scenes | scripted picture timed to the cues, any render provider, exact size, fps and frame count | [`render.sh`](skills/craft-video/scripts/render.sh) |
-| Review | contact sheet of stills for every scene and mid-transition, before the full render | `render.sh --stills` |
+| Review | contact sheet of stills for every scene and mid-transition, before the full render, then a scored critic pass (hook, hierarchy, readable, alive, sound, truth) | `render.sh --stills`, [`visual-craft.md`](skills/craft-video/reference/visual-craft.md) |
 | Score | generated music that follows the scene cuts and ducks under the voice | [`synth_music.py`](skills/craft-video/scripts/synth_music.py) |
 | Mix | picture + voice + music to one mp4 at the target loudness, optional editor timeline | [`assemble.sh`](skills/craft-video/scripts/assemble.sh) |
-| Finish | poster baked into frame 0, the file named after the video's title and carrying it in its metadata, then the QA gates | [`finish.sh`](skills/craft-video/scripts/finish.sh) |
+| Finish | poster baked into frame 0, the file named after the video's title and carrying it in its metadata, then the QA gates, including one for the picture (blank frames fail; still stretches and a long end hold warn) | [`finish.sh`](skills/craft-video/scripts/finish.sh), [`qa_frames.py`](skills/craft-video/scripts/qa_frames.py) |
+
+For a Reel, Short or TikTok the same pipeline runs at 1080x1920 with a different set of defaults (speech from the first 0.2 s, about 3 words a second, large captions with one accent, no bar wipes, a loudness of -14, music at 120 to 130 BPM). They were measured on five public reels and are in [`short-form.md`](skills/craft-video/reference/short-form.md).
 
 ### Edit a recording
 
@@ -217,6 +220,7 @@ Built and tested against a real 30-second video, then generalised:
 - **Editing, on real speech.** The first video's narration with 1.5 to 3 s of room tone between sentences: 49.1 s to 29.4 s, all 80 words in the captions, and re-transcribing the edited video gave exactly the original words.
 - **The bug real speech found.** Whisper stretched the first word of a sentence up to 0.7 s back into the silence, so three sentence openers fell inside "removed" spans and vanished from the captions. Word times are now snapped onto the voiced audio, and captions warn about any word the cuts drop without a planned reason.
 - **The Three.js bug that broke determinism.** With a composer and output pass, setting the background through the clear colour double-encoded it (`0x0a0a0b` rendered as `0x38383b`) and made the first frame differ from every later one. `scene.background` fixes it, and the renderer now seeks back to 0 after a run and warns if the frame changed. Also found: ffmpeg 9 removed `-filter_complex_script`; `acompressor`'s `makeup` is linear, not dB (it silently undid the denoise); `drawtext` mangles `%`; a bare `requestAdapter()` returns null on a hybrid-GPU machine; a headless WebGPU canvas reads back empty (render to a texture and read it back); the `sin()` hash differs between GPU and software.
+- **Five reels, measured.** Five public vertical reels about AI-made video were measured with these same tools (pace, cuts, how much of the picture barely changes, tempo, loudness). All five speak within 0.2 s, run 117 to 298 words a minute (median 185, against 156 here), and sit at -14 LUFS after the platform's normalisation. The new picture gate then found that two videos made with this suite barely change for 56% and 66% of their length, with stretches of up to 6.9 s, against 2% to 69% and at most 4.2 s in the reels. Details and what changed in the skill: `reference/short-form.md`, `reference/visual-craft.md`.
 - **Not yet tested:** a second video made from scratch by a fresh agent following only `SKILL.md`; importing the interchange files into other editors; vertical and square formats for made videos; long recordings; a real img2threejs reconstruction.
 
 ---
@@ -300,10 +304,10 @@ skills/craft-video/
 │   ├── analyze.py  plan_edit.py  captions.py  qa_edit.py  review_edit.py  interchange.py  transcript_norm.py     the editing core
 │   ├── get_three.sh  bundle.sh                   the 3D toolchain (three.js, TypeScript bundling)
 │   ├── providers.sh  conformance.sh  preflight.sh  lib.sh
-│   ├── tighten_voice.py  synth_music.py  finish.sh  qa_sync.py
+│   ├── tighten_voice.py  split_narration.py  verify_narration.py  synth_music.py  finish.sh  qa_sync.py  qa_frames.py
 │   └── build.sh  stills.sh  voicestudio-backend  (EffectCraft and VoiceStudio helpers)
 ├── jsx/                         EffectCraft helper library + the default brand
-├── reference/                   providers.md, edit.md, motion-graphics.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
+├── reference/                   providers.md, edit.md, motion-graphics.md, visual-craft.md, short-form.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
 ├── fixtures/                    tiny inputs for the conformance tests (script, real speech, synthetic footage and its ground-truth check)
 └── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird
 ```
