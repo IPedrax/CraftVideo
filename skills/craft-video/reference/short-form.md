@@ -65,9 +65,9 @@ bash $S/render.sh work/scene.html work/silent.mp4 --provider html --timeline wor
 bash $S/assemble.sh --video work/silent.mp4 --voice work/narration.wav --music work/music.wav --out work/final.mp4 --lufs -14      # cues.json: "bpm": 124
 bash $S/finish.sh work/final.mp4 . --title "The Title" --lufs -14 --voice work/narration.wav   # also runs qa_frames.py on the picture
 ```
-Captions go on through `edit.sh` with a one-segment EDL (`reference/edit.md`): `"captions": {"style": "karaoke", "max_chars": 22, "max_lines": 2, "accent": "#..."}`.
-Not built yet: a 2 to 4 word kinetic-capitals caption style (D and E), the tracker chips as a reusable component, and the word-anchored timeline
-(`reference/visual-craft.md`, "Ideas not built yet").
+Captions go on through `edit.sh` with a one-segment EDL (`reference/edit.md`): `"captions": {"style": "kinetic", "accent": "#FFD400"}` gives D and E's look (3 words at a time in big
+capitals, the spoken word in the accent colour); `"karaoke"` with `max_chars` 22 is the quieter version. Scenes can land on exact words with `anchors.py` (`reference/html-scenes.md`).
+Not built yet: the tracker chips as a reusable component (`reference/visual-craft.md`, "Ideas not built yet").
 
 ## How this was measured
 

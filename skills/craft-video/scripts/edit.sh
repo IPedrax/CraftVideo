@@ -33,12 +33,12 @@ if [ -n "$CAPS_ON" ]; then
   if [ -z "$TR" ]; then cv_warn "the EDL enables captions but no --transcript was given: no captions"
   else
     STYLE="${CSTYLE:-$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])).get("captions") or {}).get("style","box"))' "$EDL")}"; [ "$STYLE" != karaoke ] || true
-    case "$STYLE" in box|plain|karaoke) ;; *) STYLE=box;; esac
+    case "$STYLE" in box|plain|karaoke|kinetic) ;; *) STYLE=box;; esac
     SRT="${OUT%.*}.srt"
-    mapfile -t CAPARGS < <(python3 - "$EDL" <<'PY'                    # font, max_chars, max_lines and accent from the EDL, one argument per line
+    mapfile -t CAPARGS < <(python3 - "$EDL" <<'PY'                    # font, max_chars, max_lines, accent, max_words and y from the EDL, one argument per line
 import json, sys
 c = json.load(open(sys.argv[1])).get("captions") or {}
-for k, flag in (("font", "--font"), ("max_chars", "--max-chars"), ("max_lines", "--max-lines"), ("accent", "--accent")):
+for k, flag in (("font", "--font"), ("max_chars", "--max-chars"), ("max_lines", "--max-lines"), ("accent", "--accent"), ("max_words", "--max-words"), ("y", "--y")):
     if c.get(k) is not None: print(flag); print(c[k])
 PY
 )

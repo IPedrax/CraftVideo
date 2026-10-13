@@ -1,0 +1,18 @@
+{
+  "id": "blueprint",
+  "name": "Blueprint: cyanotype sheet, drafting order",
+  "for": "how a machine, a pipeline or an architecture is built: parts drawn on, then exploded",
+  "color": { "ground": "#18336B", "surface": "#2A58A6", "ink": "#E7F0F9", "muted": "#8FB0D8", "accent": "#E7F0F9", "signal": "#FF7A45" },
+  "type": {
+    "display": { "family": "Caveat", "fallback": "cursive", "weight": 600, "size": 0.054 },
+    "text":    { "family": "Caveat", "fallback": "cursive", "weight": 500, "size": 0.035 },
+    "label":   { "family": "B612", "fallback": "Noto Sans, sans-serif", "weight": 400, "size": 0.022, "caps": true }
+  },
+  "motion": { "ease": "lines draw on in drafting order; exploded views land on the beat", "note": "cuts only on downbeats; one stamp colour, used once" },
+  "camera": "flat sheet, slow pans; no 3D",
+  "texture": { "grain": 8, "note": "cyanotype tint and paper grain" },
+  "caption": { "style": "plain", "y": 0.86 },
+  "avoid": ["3D", "subtitles at the bottom of the sheet", "more than one stamp"],
+  "sound": { "mood": "harpsichord, a stamp thump", "bpm": [84, 104], "duck_db": 10 },
+  "source": "colour roles and type sizes after lemo-opuscar's blueprint notes (MIT); surface, muted and the stamp colour are ours"
+}

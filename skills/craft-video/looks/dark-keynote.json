@@ -1,0 +1,19 @@
+{
+  "id": "dark-keynote",
+  "name": "Dark keynote: a stage, one lime accent",
+  "for": "product and AI-tool explainers, launch-style reveals, anything with a hero number",
+  "color": { "ground": "#0A0B0F", "surface": "#12151C", "ink": "#E8EAF0", "muted": "#8A92A6", "accent": "#B7F34A", "signal": "#FF5A5F" },
+  "type": {
+    "hero":    { "family": "Inter Tight", "fallback": "Inter, sans-serif", "weight": 600, "size": 0.33 },
+    "display": { "family": "Inter Tight", "fallback": "Inter, sans-serif", "weight": 600, "size": 0.095 },
+    "text":    { "family": "Inter Tight", "fallback": "Inter, sans-serif", "weight": 400, "size": 0.037 },
+    "label":   { "family": "Inter Tight", "fallback": "Inter, sans-serif", "weight": 500, "size": 0.026 }
+  },
+  "motion": { "ease": "fast out, a small overshoot, landing on the beat", "feel_fps": 24, "note": "a UI expanding or collapsing is the cut; red is used until the turn, then the accent" },
+  "camera": "2.5D with a log-space pull-back",
+  "texture": { "grain": 8, "grid": "hairlines at 3% white on a 48 px pitch", "vignette": 0.55 },
+  "caption": { "style": "pill", "y": 0.86 },
+  "avoid": ["a second accent", "fades"],
+  "sound": { "mood": "marimba and vibes; true silence before the key hit", "bpm": [96, 120], "duck_db": 10 },
+  "source": "colour roles and caption size after lemo-opuscar's dark-keynote notes (MIT); muted and the display size are ours"
+}

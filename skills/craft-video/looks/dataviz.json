@@ -1,0 +1,19 @@
+{
+  "id": "dataviz",
+  "name": "Data on paper: pencil marks, one ramp",
+  "for": "explainers whose proof is a chart or a number: each mark pops, a ratchet rescales, nothing fades",
+  "color": { "ground": "#F6F3EC", "surface": "#E4DDCF", "ink": "#2B2723", "muted": "#6F675C", "accent": "#2F5D8A", "signal": "#A8283A" },
+  "ramp": ["#2166AC", "#F2EEE8", "#B2182B"],
+  "type": {
+    "display": { "family": "Newsreader", "fallback": "Noto Serif, serif", "weight": 500, "size": 0.08 },
+    "text":    { "family": "Newsreader", "fallback": "Noto Serif, serif", "weight": 400, "size": 0.039 },
+    "label":   { "family": "Caveat", "fallback": "cursive", "weight": 500, "size": 0.031 }
+  },
+  "motion": { "ease": "marks pop in; a ratchet rescales the axis", "note": "blue pencil for notes, red pencil for records" },
+  "camera": "2D, the newest mark kept near 60% of the width",
+  "texture": { "grain": 6, "note": "seeded paper fibre noise" },
+  "caption": { "style": "plain", "y": 0.86 },
+  "avoid": ["fades", "stretched colour ramps"],
+  "sound": { "mood": "pitch follows value; silence before the key mark", "bpm": [88, 104], "duck_db": 10 },
+  "source": "colour roles, ramp and type sizes after lemo-opuscar's dataviz notes (MIT); surface tint, muted and the display size are ours"
+}

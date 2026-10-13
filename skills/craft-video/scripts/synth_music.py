@@ -13,7 +13,11 @@ cues.json (all times in seconds; every key optional except duration):
    "arp":    [[time, level], ...],              arpeggio density; a level holds until the next entry, 0 = off
    "pulse":  [[time, "half"|"every"|"off"], ...] soft thump every other beat / every beat / stop
    "risers": [[start, end, level], ...],
-   "ticks":  [[start, end, seconds_between], ...]   quiet rising blips under count-ups}
+   "ticks":  [[start, end, seconds_between], ...],  quiet rising blips under count-ups
+   "dips":   [[start, end, dB], ...]}               pull the whole bed down by dB between start and end (60 ms down, 0.3 s back up): while a card or
+                                                    number is read in silence (6 to 10 dB), or in the bar before the biggest hit (8 to 15 dB, 0.2 to 0.5 s)
+Hits are best kept to 1 to 3 hand-placed ones: a boom on every scene change reads as a template (reference/visual-craft.md).
+`--selftest` renders a short bed with a 10 dB dip and checks the dip, and that nothing changes without one.
 Needs numpy + soundfile (the VoiceStudio venv has them)."""
 import argparse, json, re
 import numpy as np
@@ -36,13 +40,13 @@ def triad(name):
     return [root, root + (3 if m.group(2) else 4), root + 7]
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--cues", required=True)
     ap.add_argument("--narration")
     ap.add_argument("--out", required=True)
     ap.add_argument("--seed", type=int, default=7)
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     cues = json.load(open(a.cues))
     DUR = float(cues["duration"]); N = int(SR * DUR)
     BEAT = 60.0 / float(cues.get("bpm", 100)); BAR = 4 * BEAT
@@ -169,6 +173,8 @@ def main():
             y = c * y + (1 - c) * xv; sm[i] = y
         duck = 1 - 0.68 * sm
     music = np.stack([L, R], axis=1) * duck[:, None]
+    for s, e, db in cues.get("dips", []):                          # extra pull-down of the bed: a fast fade down, a slower return
+        if e > s: music *= np.interp(np.arange(N), np.array([s - 0.06, s, e, e + 0.3]) * SR, [1, 10 ** (-db / 20), 10 ** (-db / 20), 1])[:, None]
     music[: int(0.05 * SR)] *= np.linspace(0, 1, int(0.05 * SR))[:, None]
     music[-int(0.6 * SR):] *= np.linspace(1, 0, int(0.6 * SR))[:, None]
     music *= 0.5 / (np.abs(music).max() + 1e-9)
@@ -178,5 +184,22 @@ def main():
           f"{', ducked under ' + a.narration if a.narration else ''}")
 
 
+def selftest():
+    import os, tempfile
+    d = tempfile.mkdtemp(); base = {"duration": 12, "bpm": 100, "progression": ["Am", "F"], "arp": [[0, 0.6]]}
+    def run(name, extra):
+        json.dump({**base, **extra}, open(f"{d}/{name}.json", "w")); main(["--cues", f"{d}/{name}.json", "--out", f"{d}/{name}.wav"]); return sf.read(f"{d}/{name}.wav")[0]
+    plain, dipped = run("plain", {}), run("dipped", {"dips": [[4, 8, 10]]})
+    rms = lambda x, a, b: np.sqrt((x[int(a * SR):int(b * SR)] ** 2).mean())
+    drop = 20 * np.log10(rms(dipped, 5, 7) / rms(plain, 5, 7))
+    assert -10.7 < drop < -9.3, f"the bed should drop 10 dB inside the dip, it dropped {drop:.2f} dB"
+    assert abs(20 * np.log10(rms(dipped, 1, 3) / rms(plain, 1, 3))) < 0.05 and abs(20 * np.log10(rms(dipped, 9.5, 11) / rms(plain, 9.5, 11))) < 0.3, "the bed must be untouched away from the dip"
+    again = run("again", {})
+    assert np.array_equal(plain, again), "no dips and the same seed must give the same samples"
+    print(f"synth_music selftest: ok (dip {drop:.2f} dB)")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--selftest": selftest()
+    else: main()

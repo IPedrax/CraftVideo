@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """captions.py: captions for the EDITED video from the original transcript.
 
-  captions.py --transcript T.json --edl edit.json --srt out.srt [--ass out.ass] [--style box|plain|karaoke]
-              [--max-chars 42] [--max-lines 2] [--max-dur 6] [--font "Noto Sans"] [--accent "#ff2e88"]
+  captions.py --transcript T.json --edl edit.json --srt out.srt [--ass out.ass] [--style box|plain|karaoke|kinetic]
+              [--max-chars 42] [--max-lines 2] [--max-dur 6] [--font "Noto Sans"] [--accent "#ff2e88"] [--max-words N] [--y 0.62]
 
 Word times are remapped through the edit decision list: a word inside a kept segment moves to its new position, a word inside a removed
 span (a cut filler, trimmed dead air) disappears, a word cut in half is clipped. Words are grouped into readable cues (<= max-chars per
 line, <= max-lines lines, <= max-dur seconds, broken at sentence ends and long pauses), never overlapping, each on screen at least 0.6 s.
 SRT is for sidecar files and other editors; ASS is what gets burned in (styles: box = white text on a dark box, plain = outlined text,
-karaoke = the spoken word turns the accent colour). Sizes scale with the output height (the width for portrait, which also gets 26-character lines and a higher margin).
+karaoke = the spoken word turns the accent colour, kinetic = the reels' look: 3 words at a time in big capitals, thick outline, centred at --y of the height (0.62 portrait, 0.8 landscape),
+the spoken word turning the accent colour; its default font is Big Shoulders Display, which is installed with the suite's brand and is SIL OFL). Sizes scale with the output height
+(the width for portrait, which also gets 26-character lines and a higher margin).
 Cue-level source transcripts have estimated word times (transcript.approx_word_times), so captions follow them only approximately."""
 import argparse, json, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -43,7 +45,7 @@ def remap(words, segs):
     return out
 
 
-def cues_from(words, max_chars, max_lines, max_dur):
+def cues_from(words, max_chars, max_lines, max_dur, max_words=None):
     cues, cur = [], []
     def flush():
         nonlocal cur
@@ -54,7 +56,7 @@ def cues_from(words, max_chars, max_lines, max_dur):
             gap = w["start"] - cur[-1]["end"]
             # a cut between kept segments is a trimmed pause, so it is a phrase boundary once the cue has some body
             cut = w.get("seg") != cur[-1].get("seg") and text_len(cur) >= max_chars * 0.4
-            if (gap > 0.7 or cut or text_len(cur + [w]) > max_chars * max_lines or w["end"] - cur[0]["start"] > max_dur):
+            if (gap > 0.7 or cut or text_len(cur + [w]) > max_chars * max_lines or w["end"] - cur[0]["start"] > max_dur or (max_words and len(cur) >= max_words)):
                 flush()
         cur.append(w)
         if re.search(r"[.!?]$", w["text"]) and (len(cur) >= 3 or cur[-1]["end"] - cur[0]["start"] >= 1.2): flush()
@@ -78,12 +80,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--transcript", required=True); ap.add_argument("--edl", required=True)
     ap.add_argument("--srt", required=True); ap.add_argument("--ass")
-    ap.add_argument("--style", default="box", choices=["box", "plain", "karaoke"])
-    ap.add_argument("--max-chars", type=int, default=None, help="default 42 (26 for portrait)"); ap.add_argument("--max-lines", type=int, default=2); ap.add_argument("--max-dur", type=float, default=6.0)
+    ap.add_argument("--style", default="box", choices=["box", "plain", "karaoke", "kinetic"])
+    ap.add_argument("--max-chars", type=int, default=None, help="default 42 (26 for portrait; 14 and 22 for kinetic)"); ap.add_argument("--max-lines", type=int, default=2); ap.add_argument("--max-dur", type=float, default=6.0)
     ap.add_argument("--font", default="Noto Sans"); ap.add_argument("--accent", default="#ff2e88")
+    ap.add_argument("--max-words", type=int, default=None, help="words per cue (3 for kinetic)"); ap.add_argument("--y", type=float, default=None, help="kinetic: vertical centre as a share of the height")
     a = ap.parse_args()
     t = json.load(open(a.transcript)); e = load(a.edl)
     o = e.get("output", {}); W = o.get("width") or 1920; H = o.get("height") or 1080; portrait = H > W
+    kinetic = a.style == "kinetic"
+    if kinetic:
+        a.max_words = a.max_words or 3; a.y = a.y if a.y is not None else (0.62 if portrait else 0.8)
+        if a.max_chars is None: a.max_chars = 14 if portrait else 22
+        if a.font == "Noto Sans": a.font = "Big Shoulders Display"
     if a.max_chars is None: a.max_chars = 26 if portrait else 42
     words = remap(t["words"], e["segments"])
     if not words: sys.exit("captions: no words fall inside the kept segments")
@@ -92,7 +100,7 @@ def main():
     lost = [w for w in t["words"] if not any(s["in"] <= (w["start"] + w["end"]) / 2 < s["out"] for s in e["segments"])
             and not any(abs(w["start"] - at) < 0.2 and re.sub(r"\W", "", w["text"].lower()) == re.sub(r"\W", "", wd) for wd, at in planned)]
     if lost: print(f"captions: warning: {len(lost)} word(s) fall in removed spans without being a planned cut: " + ", ".join(f"'{w['text']}' {w['start']:.1f}s" for w in lost[:6]) + (" ..." if len(lost) > 6 else ""), file=sys.stderr)
-    cues = cues_from(words, a.max_chars, a.max_lines, a.max_dur)
+    cues = cues_from(words, a.max_chars, a.max_lines, a.max_dur, a.max_words)
     # timing polish: minimum 0.6 s on screen, never overlap the next cue
     spans = []
     for i, c in enumerate(cues):
@@ -105,9 +113,11 @@ def main():
     if a.ass:
         # portrait: size from the width (the height would give 3 wrapped lines) and sit above the platform UI zone
         size = round(0.065 * W) if portrait else round(0.052 * H); mv = round((0.17 if portrait else 0.075) * H); ml = round(0.06 * W)
+        if kinetic: size = round(0.095 * W) if portrait else round(0.085 * H)
         if a.style == "box": bs, outline, shadow = 3, round(0.012 * H), 0
+        elif kinetic: bs, outline, shadow = 1, max(4, round(0.0045 * max(W, H))), 2
         else: bs, outline, shadow = 1, max(2, round(0.004 * H)), 1
-        prim, sec = ("&H00FFFFFF", "&H00FFFFFF") if a.style != "karaoke" else (ass_colour(a.accent), "&H00FFFFFF")
+        prim, sec = ("&H00FFFFFF", "&H00FFFFFF") if a.style not in ("karaoke", "kinetic") else (ass_colour(a.accent), "&H00FFFFFF")
         hdr = (f"[Script Info]\nScriptType: v4.00+\nPlayResX: {W}\nPlayResY: {H}\nWrapStyle: 0\nScaledBorderAndShadow: yes\n\n"
                f"[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
                f"ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
@@ -116,12 +126,14 @@ def main():
         with open(a.ass, "w", encoding="utf-8") as f:
             f.write(hdr)
             for c, (s, en) in zip(cues, spans):
-                if a.style == "karaoke":
+                if a.style in ("karaoke", "kinetic"):
                     parts = []
                     for k, w in enumerate(c):
                         nxt = c[k + 1]["start"] if k + 1 < len(c) else w["end"]
-                        parts.append(f"{{\\k{max(1, round((nxt - w['start']) * 100))}}}{w['text'].replace('{', '(').replace('}', ')')} ")
+                        word = w["text"].replace("{", "(").replace("}", ")")
+                        parts.append(f"{{\\k{max(1, round((nxt - w['start']) * 100))}}}{word.upper() if kinetic else word} ")
                     txt = "".join(parts).strip()
+                    if kinetic: txt = f"{{\\an5\\pos({W // 2},{round(a.y * H)})}}" + txt                  # centred on the point, the style's own wrapping does the lines
                 else:
                     txt = "\\N".join(l.replace("{", "(").replace("}", ")") for l in lines_of(c, a.max_chars, a.max_lines))
                 f.write(f"Dialogue: 0,{ass_t(s)},{ass_t(en)},Default,,0,0,0,,{txt}\n")

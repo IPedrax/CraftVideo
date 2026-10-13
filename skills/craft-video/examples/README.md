@@ -12,6 +12,8 @@ Each folder renders with the commands shown (`S` is `skills/craft-video/scripts`
 | `webgpu-shader/` | a WGSL shader as a background, read back to a 2D canvas | the `html` provider with a system Chromium |
 | `gsap-timeline/` | a GSAP timeline on cues: staggered type, a counter, an SVG rule drawing | GSAP (`gsap.min.js` next to the scene, not shipped) |
 | `overlay-lowerthird/` | a transparent lower third (ProRes 4444) to composite onto an edited recording | the `html` provider |
+| `looks-demo/` | one scene styled only by the variables a look injects (`--look NAME`): the same frame in nine art directions | the `html` provider |
+| `continuous-camera/` | a one-take video: four beats are stations in one world, one camera travels between them keyed from the cues (log zoom, parallax, a carrier dot and a drawn route instead of a wipe) | the `html` provider |
 
 ## Commands
 
@@ -35,6 +37,14 @@ bash $S/render.sh overlay-lowerthird/scene.html lowerthird.mov --provider html -
 bash $S/render.sh three-3d/scene.html cart.mov --provider html --timeline three-3d/timeline.json --width 960 --height 540 --fps 30 --duration 3 --alpha 1
 ```
 
+# the same scene in a look (nine in ../looks), then the layout lint under that look
+bash $S/render.sh looks-demo/scene.html out.mp4 --provider html --width 1920 --height 1080 --fps 30 --duration 4 --look dark-keynote
+bash $S/render.sh looks-demo/scene.html lint.json --provider html --width 1920 --height 1080 --duration 4 --look dark-keynote --lint 1
+
+# one camera through four beats (a DOM scene: --workers 3 renders it about three times as fast; the identical video)
+bash $S/render.sh continuous-camera/scene.html out.mp4 --provider html --timeline continuous-camera/timeline.json --width 1920 --height 1080 --fps 30 --duration 14 --workers 3
+```
+
 Review stills first, as always: add `--stills "0.3 1.5 3.0 4.8" --sheet sheet.png` instead of a duration to get a contact sheet.
 
 ## What they proved (measured here)
@@ -45,3 +55,5 @@ Review stills first, as always: add `--stills "0.3 1.5 3.0 4.8" --sheet sheet.pn
 - `three-3d` with `--alpha 1`: 87% of pixels transparent, composited over an edited recording under the captions.
 - `img2threejs-bridge`: the generator's TypeScript bundles in 30 ms and plays in a scene. It does not show a real reconstruction.
 - `gsap-timeline`: tested with GSAP 3.15.0 from a local copy; GSAP's licence is its own, so the library is not bundled.
+- `looks-demo`: rendered in all nine looks and tiled; the lint found, in the first draft of the Swiss look, a sentence running off the frame (a 7% statement size used as body text), which is why that look now has a separate `statement` role. Lints clean under all nine.
+- `continuous-camera`: 420 frames, deterministic across 3 workers, lint clean. The picture gate still lists the holds as "barely changing": the push-in during a hold is 5% of zoom over about 3 s, which is below its 0.5/255 per-frame threshold by definition (a slow push is a living camera to the eye and a still one to that gate).

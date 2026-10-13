@@ -1,0 +1,18 @@
+{
+  "id": "ascii-crt",
+  "name": "ASCII on a CRT: amber glyphs on a dark glass",
+  "for": "terminals, code, early-internet and hacker-culture topics; everything is a character on a grid",
+  "color": { "ground": "#090604", "surface": "#1A110A", "ink": "#FFEBB8", "muted": "#FF6605", "accent": "#FFB000", "signal": "#FF6605" },
+  "type": {
+    "display": { "family": "VT323", "fallback": "IBM Plex Mono, monospace", "weight": 400, "size": 0.1 },
+    "text":    { "family": "VT323", "fallback": "IBM Plex Mono, monospace", "weight": 400, "size": 0.042 },
+    "label":   { "family": "VT323", "fallback": "IBM Plex Mono, monospace", "weight": 400, "size": 0.03, "caps": true }
+  },
+  "motion": { "ease": "glyphs never leave the grid; the camera is the font size", "note": "20 to 200+ columns; scanlines, curvature and bloom; a second colour once, at most" },
+  "camera": "zoom by changing the character size",
+  "texture": { "grain": 10, "note": "scanlines, slight curvature, bloom" },
+  "caption": { "style": "plain", "font": "VT323", "y": 0.86 },
+  "avoid": ["an image plus an ASCII filter", "chiptune"],
+  "sound": { "mood": "analog synth, no chiptune", "bpm": [96, 116], "duck_db": 10 },
+  "source": "colour roles and the type sizes after lemo-opuscar's ascii-crt notes (MIT); surface and the display size are ours"
+}

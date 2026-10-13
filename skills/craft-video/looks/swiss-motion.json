@@ -1,0 +1,19 @@
+{
+  "id": "swiss-motion",
+  "name": "Swiss: off-white page, black ink, one red signal",
+  "for": "serious, factual explainers; policy, privacy, law, finance; a column grid and knife cuts",
+  "color": { "ground": "#EAE9E5", "surface": "#CFCEC9", "ink": "#111111", "muted": "#5E5D58", "accent": "#E30613", "signal": "#E30613" },
+  "type": {
+    "display":   { "family": "Archivo", "fallback": "Noto Sans, sans-serif", "weight": 700, "size": 0.11 },
+    "statement": { "family": "Archivo", "fallback": "Noto Sans, sans-serif", "weight": 500, "size": 0.07 },
+    "text":      { "family": "Archivo", "fallback": "Noto Sans, sans-serif", "weight": 500, "size": 0.04 },
+    "label":   { "family": "Archivo", "fallback": "Noto Sans, sans-serif", "weight": 500, "size": 0.028 }
+  },
+  "motion": { "ease": "bezier(0.7, 0, 0.2, 1) and linear only", "note": "clip reveals and knife cuts; pans move by column; no bounce, no thin columns" },
+  "camera": "2D pans along the grid",
+  "texture": { "grain": 0 },
+  "caption": { "style": "plain", "y": 0.86 },
+  "avoid": ["bounce", "texture", "a second signal colour"],
+  "sound": { "mood": "motorik pulse, marimba", "bpm": [100, 124], "duck_db": 10 },
+  "source": "colour roles and the title and statement sizes after lemo-opuscar's swiss-motion notes (MIT); surface, muted and the text size are ours"
+}

@@ -23,8 +23,10 @@ rules any WebGPU code must follow here.
 ## The rule for everything: a frame is a pure function of t
 
 `window.craftvideo.seek(t)` must draw the same pixels every time it is called with the same `t`, whatever was drawn before. No clock, no
-`requestAnimationFrame` loop, no `Math.random` (use a seeded generator), no animation left running on its own. The renderer checks this:
-after the last frame it seeks to 0 again and compares with the first frame, and prints a `WARNING` if they differ.
+`requestAnimationFrame` loop, no `Math.random` (use a seeded generator), no animation left running on its own. The renderer checks this twice: a
+**preflight** before encoding visits five times forward and then backward and stops with exit code 4 if any frame differs the second time (so state built up frame
+by frame, an unseeded random or a clock fails in seconds, not after the render), and after the last frame it seeks to 0 again and prints a `WARNING` if the first
+frame changed.
 For any animation library the pattern is the same: build a **paused** timeline once, set its playhead in `seek`.
 
 ```js
@@ -71,6 +73,42 @@ because it runs anywhere and is the same on every machine. `--gpu off|auto|vulka
 falls back to software with a message. **Render a whole video on one backend**: GPU and software rasterise antialiasing and floating point a
 little differently, so a video mixing the two can shimmer at the join. The VoiceStudio voice engine and a GPU render compete for the same
 12 GB card: finish narration first.
+
+## Render options: workers, shutter blur, grain, preflight, layout lint
+
+All on the `html` provider, all optional, none changes what you get by default (the default output is byte-identical to before they existed).
+
+| Flag | What it does | Measured here |
+|---|---|---|
+| `--workers N` (or `auto`, env `CRAFTVIDEO_WORKERS`) | captures frames on N pages at once and writes them to ffmpeg in order; frames are pure functions of t, so the video is identical | a DOM scene, 640x360: 35 to 9 ms a frame with 4 workers, same frame hashes. A Three.js scene on software WebGL: no gain (162 against 156 ms; SwiftShader already uses every core inside one process), still identical. A real GPU was not tried |
+| `--shutter 180 --subframes 8` | motion blur: renders 8 sub-frames across a 180 degree shutter and averages them per frame (ffmpeg `tmix`, 16-bit); a moment where nothing moves costs 2 captures, not 8; not with `--alpha` | a box moving 20 px a frame went from a crisp edge (2 grey levels on the row) to a soft one (16). The same trivial scene took 36 ms a frame without it, 67 with 4 sub-frames and 184 with 8 (a busy machine, so rough). Use it on short scenes with fast type or 3D, not on a whole long video |
+| `--grain S` | luma film grain, a fixed seed, so a re-render is identical; not with `--alpha` | luma std is about S/3 of 255 and survives x264 at crf 14: 8 is subtle, 16 clearly visible |
+| `--preflight 0` | skips the determinism preflight (five times forward, then backward; it also warns when the picture is identical at all five, which means `seek(t)` may be ignoring `t`) | on a scene that depended on how often `seek` was called it stopped before encoding, exit 4 |
+| `--lint 1` | no video: audits the layout and writes a JSON report, exit 1 on any error | below |
+
+```bash
+bash $S/render.sh work/scene.html work/lint.json --provider html --lint 1 --timeline work/timeline.json --width 1920 --height 1080 [--lint-step 0.5] [--band 0.18] [--min-size 0.025]
+```
+The audit seeks every `--lint-step` seconds (0.5), reads every text box from the DOM and reports what is **held** for 3 samples in a row (an entrance or an exit is motion, not a
+fault):
+
+| Rule | Severity | What it means |
+|---|---|---|
+| `frame` | error | text cut by the picture's edge |
+| `clipped` | error | text cut by an ancestor with `overflow: hidden` |
+| `overlap` | error | the text of two different elements on top of each other (over 20% of the smaller box) |
+| `occluded` | error | text hidden behind another element with an opaque background (a 5 x 3 grid of hit tests inside the text; a translucent veil does not count) |
+| `small` | warn | text under `--min-size` of the height as drawn (scale transforms are counted), default 2.5% |
+| `band` | warn | text in the bottom `--band` (18%) that captions will cover |
+| `contrast` | warn | text colour against the ground under it, below 3:1 (large text) or 4.5:1; sampled every 2 s by hiding every glyph, taking one screenshot and reading the pixels under each box |
+
+Opt out on any ancestor: `data-cv-ignore` (skip), `data-cv-texture` (small text is meant: sources, footers), `data-cv-caption` (belongs in the caption band), `data-cv-layer` (may overlap).
+The occlusion and contrast ideas follow what HyperFrames' `check` does (Apache-2.0; our code is separate and was written from a description of it).
+It sees DOM text only: text drawn into a canvas, a WebGL texture or an image is invisible to it, so keep reading the contact sheets. Overlap is measured on the ink area (a line box carries
+empty space above the capitals, so a big number directly under a small label would otherwise count as an overlap: the first version raised three false errors on real scenes). Tested: on the
+repo's own examples it reports no errors; on a page with every fault planted it found all of them and nothing else (a slide-in during the first 0.4 s was correctly ignored as motion); on four
+scenes of an 87 s video (Three.js plus HTML labels) it reported no errors and only true warnings (kickers, labels and a column of source lines at 1.6 to 2.4% of the height, source lines in the
+caption band). The fifth scene needs WebGPU, which the test sandbox lacks. Warnings of the same kind in the same time range are printed as one line; the JSON report keeps every box.
 
 ## WebGPU / WGSL
 

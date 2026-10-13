@@ -1,0 +1,18 @@
+{
+  "id": "signature",
+  "name": "Signature: near-black, one hot pink, cyan for data",
+  "for": "the owner's own videos (The Connected City, AI Is Taking Games Apart): tech explainers with a hard graphic edge",
+  "color": { "ground": "#0a0a0b", "surface": "#17171a", "ink": "#f2f2f0", "muted": "#8a8a90", "accent": "#ff2e88", "signal": "#3ad7ff" },
+  "type": {
+    "display": { "family": "Big Shoulders Display", "fallback": "Arial Narrow, sans-serif", "weight": 900, "size": 0.16, "caps": true },
+    "text":    { "family": "IBM Plex Mono", "fallback": "monospace", "weight": 400, "size": 0.032 },
+    "label":   { "family": "IBM Plex Mono", "fallback": "monospace", "weight": 500, "size": 0.022, "caps": true }
+  },
+  "motion": { "ease": "softLand for entries, whip for snaps, accelExit for exits", "note": "a pink bar wipe between scenes is the old default: prefer a carried element (reference/visual-craft.md)" },
+  "camera": "slow push on 3D; cyan is reserved for data",
+  "texture": { "grain": 8 },
+  "caption": { "style": "plain", "font": "IBM Plex Mono", "y": 0.86 },
+  "avoid": ["a second accent", "cyan on anything that is not data"],
+  "sound": { "mood": "minor pad, sub boom, plucked arpeggio", "bpm": [90, 104], "duck_db": 10 },
+  "source": "this suite's own brand (jsx/brand-ipedrax.jsx); both fonts are SIL OFL"
+}

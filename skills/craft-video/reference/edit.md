@@ -35,7 +35,11 @@ $PY $S/review_edit.py $D/edit.json $V $D/review --transcript $D/transcript.json
    `--punch-in 1.08`, `--lufs`, `--denoise auto|off|N`, `--captions|--no-captions`, `--music FILE --music-db -22`, `--width/--height/--fps`,
    `--reframe none|crop|blur`, `--stabilize`.
 4. **Review the plan before applying it.** Open `edit.json`: `stats.filler_cuts` lists every word it will cut, `segments` is exactly what
-   stays. Drop a segment or move a boundary by editing the JSON; there is nothing hidden.
+   stays. Drop a segment or move a boundary by editing the JSON; there is nothing hidden. For a recording where the person re-said lines until they came out right, run
+   `python3 $S/find_retakes.py $D/transcript.json`: it lists earlier takes that a later take repeats, and false starts that were abandoned (takes split at pauses over 0.85 s,
+   compared by their first content words), with both texts and times, and **never edits**. Approve each, remove the span from `segments`, and read `review.md` afterwards: the
+   later take is not always the better one, and a deliberate repeat is content. (The idea is from the HyperFrames student kit's retake finder, MIT; ours is a separate implementation,
+   tested on a synthetic transcript and found nothing in three real transcripts that had no retakes.)
 5. **Apply** with `edit.sh`. Name the output after the video and pass `--title`: it is written into the file's metadata by a lossless stream copy
    (chapters kept). It resolves a provider, builds the captions, warns about anything the provider cannot do, runs the edit,
    then enforces the output contract (length = kept segments within 2 frames, size, fps, audio present).
@@ -68,7 +72,7 @@ really overlaps voiced audio. "like" and "you know" are not touched: they are us
   "segments": [ { "in": 0.75, "out": 4.32, "zoom": 1.0 }, { "in": 6.30, "out": 7.55, "zoom": 1.08 } ],   // source seconds, back to back in the output
   "audio":    { "highpass": 80, "denoise": 12, "compress": true, "presence": true, "fade_ms": 8, "lufs": -16.0 },
   "video":    { "color": "auto", "stabilize": false, "lut": null },     // color: "none" | "auto" | {"saturation":1.2,"contrast":1.1,...}; lut: a .cube path
-  "captions": { "enabled": true, "style": "box", "max_chars": 42, "burn": true, "sidecar": "srt" },   // style: box | plain | karaoke; optional: font ("IBM Plex Mono"), max_lines, accent ("#ff2e88")
+  "captions": { "enabled": true, "style": "box", "max_chars": 42, "burn": true, "sidecar": "srt" },   // style: box | plain | karaoke | kinetic; optional: font ("IBM Plex Mono"), max_lines, accent ("#ff2e88"); kinetic also max_words (3) and y (0.62 of the height)
   "music":    null,                                                      // or {"file": "...", "db": -22, "duck": true}
   "overlays": [                                                          // output-time seconds
     { "type": "title", "text": "Any text, 100% safe", "start": 9, "end": 11, "pos": "lower" },
@@ -83,6 +87,9 @@ What the audio fields do, in order: `highpass` cuts rumble below that frequency;
 gentle +2 dB lift at 3.2 kHz; `compress` is a 3:1 compressor from -20 dB; music (if any) is ducked under the voice by sidechain compression;
 the whole mix is then normalised in **two passes** to `lufs` with a true-peak limit of -1.5 dB. Every cut gets an 8 ms fade (`fade_ms`) so
 nothing clicks.
+
+`"style": "kinetic"` is the vertical-video look (`reference/short-form.md`): 3 words at a time in big capitals (Big Shoulders Display unless `font` says otherwise) with a thick outline,
+centred at `y` of the height, the spoken word turning the `accent` colour; `max_words` changes the 3. Tested by burning it onto a portrait clip from a real transcript.
 
 Captions are built from the transcript, **remapped through the cuts**: a word in a removed span disappears, a word cut in half is clipped.
 Cues break at sentence ends, long pauses and at the cuts themselves, never overlap, and stay on screen at least 0.6 s. The same cues are

@@ -78,7 +78,8 @@ one sentence, who is it for, the most surprising true thing, the one-line captio
 
 **2. Plan (brag) and title.** Choose the video's **title** now: what a viewer would call it, 3 to 8 words in title case, never "brag", "final" or "video".
 It names the folder and the files. Read brag's playbook if OmniSkill is installed (path in `reference/storyboard.md`), then write `plan.md` in the
-video's folder from the template there: angle, tone (default `polished` for factual topics), storyboard table, claims table. Hook first.
+video's folder from the template there: angle, tone (default `polished` for factual topics), storyboard table, claims table. Hook first. Each storyboard row says what the viewer
+comes to believe ("Buys") and how much the beat matters (1 to 3, at most a quarter of them 3).
 
 **3. Script.** One sentence per line in `work/script.txt`, optional `label | sentence`. About 2.6 words per second (30 s is 75 to 80 words).
 Spell numbers as they are said ("eighty-four").
@@ -119,6 +120,10 @@ Check the printed table: each sentence's duration must fit its word count.
 - `effectcraft`: write `work/scenes.jsx` with `jsx/ec_lib.jsx` (`begin`, `background`, `scanbar`, `footer`, `txt`, `rect`, `kicker`, `panel`, `chip`,
   `underscore`, `finish`); start from `examples/decomp-30s/scenes.jsx`; traps in `reference/effectcraft-scripting.md`. `begin({})` follows the render spec.
 - `html`: write `work/scene.html` defining `window.craftvideo.seek(t)`; start from `examples/html-hello/scene.html`; rules in `reference/html-scenes.md`.
+  **A look**: pick one of the nine in `looks/` (`signature`, `dark-keynote`, `dataviz`, `iso-infographic`, `swiss-motion`, `whiteboard`, `blueprint`, `hologram-hud`, `ascii-crt`; the table is in
+  `looks/README.md`), style the scene with its variables (`var(--cv-ink, #f2f2f0)`, `var(--cv-display-size, 9vh)`) and render with `--look NAME`. Its `motion`, `avoid` and `sound` fields are direction for the
+  scenes and the music. **One camera, no cuts**: `examples/continuous-camera/` keys a single camera through every beat from `timeline.json`. **An exact word inside a sentence**: list it in `work/anchors.txt`
+  and run `anchors.py` (`reference/html-scenes.md`); the scene reads `spec.timeline.moments.name.start`.
 - `command`: whatever your renderer takes; it must honour `{width} {height} {fps} {duration}`.
 Time every event from `timeline.json` (scenes follow words). Patterns that worked: slam-in hook with a trailing underscore; two-panel before/after;
 count-up numbers with bars drawn to scale; progress bar with a big percentage; split panels with a quote; punchline with a held end card and sources.
@@ -126,6 +131,8 @@ count-up numbers with bars drawn to scale; progress bar with a big percentage; s
 **7. Review stills (do not skip).** Look at every scene AND mid-transition, fix overflow, collisions and low contrast, look again.
 ```bash
 bash $S/render.sh work/scenes.jsx work/sheet.png --timeline work/timeline.json --stills "1.4 3.0 4.6 6.2 8.6 11.2" --sheet work/sheet.png
+# html scenes: also audit the layout (no video; a json report; exit 1 on an error: text cut by the frame or a box, text on text; warnings: small text, caption band, contrast)
+bash $S/render.sh work/scene.html work/lint.json --provider html --lint 1 --timeline work/timeline.json --width 1920 --height 1080
 ```
 Then read the sheet image. Check the creative laws: readable ~0.3 s per word, hook strong in 2 s, no text leaving its panel, every claim supportable.
 
@@ -133,8 +140,8 @@ Then read the sheet image. Check the creative laws: readable ~0.3 s per word, ho
 fix anything under 8 and re-render only those scenes. Type sizes, easing, transitions and finish are in the same file. Anything for social (Reel, Short, TikTok): read
 `reference/short-form.md` first (pace, lead-in, captions, a loudness of -14).
 
-**8. Music.** Write `work/cues.json` (format in the `synth_music.py` docstring; hits on scene changes, arp density by scene, risers, count-up
-ticks, chord per bar), then `$PY $S/synth_music.py --cues work/cues.json --narration work/narration.wav --out work/music.wav`.
+**8. Music.** Write `work/cues.json` (format in the `synth_music.py` docstring; 1 to 3 hand-placed hits, not one per scene change; arp density by scene, risers, count-up
+ticks, chord per bar; `dips` to pull the bed down while a card is read in silence), then `$PY $S/synth_music.py --cues work/cues.json --narration work/narration.wav --out work/music.wav`.
 Or bring your own music file and skip this step (it will not be ducked under the voice unless you duck it).
 
 **9. Render and assemble.**
@@ -142,6 +149,8 @@ Or bring your own music file and skip this step (it will not be ducked under the
 bash $S/render.sh work/scenes.jsx work/silent.mp4 --timeline work/timeline.json --width 1920 --height 1080 --fps 30   # duration = timeline total
 bash $S/assemble.sh --video work/silent.mp4 --voice work/narration.wav --music work/music.wav --out work/final.mp4
 ```
+`render.sh` takes `--workers 4` (a DOM scene rendered about 4x faster with identical frames; software WebGL gains nothing), and for short scenes with fast type or 3D `--shutter 180 --subframes 8`
+(motion blur) and `--grain 8`: `reference/motion-graphics.md`. A scene that depends on history is refused before encoding (exit 4).
 Music sits at -9 dB, mix normalised to -16 LUFS. Hand-off to another editor: add `--provider filmcraft --interchange otio --interchange-out work/edit.otio`
 (formats edl, xml, fcpxml, otio, aaf, omf); media is referenced by absolute path.
 
@@ -171,7 +180,8 @@ $PY $S/review_edit.py $D/edit.json $V $D/review --transcript $D/transcript.json
 ```
 
 1. Pick the style from what the recording is (`talking-head`, `screen`, `podcast`, `raw`). Ask only if it is unclear; say what you chose.
-2. **Read `edit.json` before applying it**: `stats.filler_cuts` is every word it will cut, `segments` is what stays. Adjust the JSON, not the script.
+2. **Read `edit.json` before applying it**: `stats.filler_cuts` is every word it will cut, `segments` is what stays. Adjust the JSON, not the script. If the person re-said lines until they came out right,
+   run `python3 $S/find_retakes.py $D/transcript.json` for the earlier takes and false starts a later take repeats (it only lists; approve each, then remove the span from `segments`).
 3. After the edit, **read `review/review.md`** (the words removed at every cut) and **look at `review/cuts.jpg`** (before and after each cut). Fix and
    re-apply until nothing real was cut and no cut jumps oddly. `qa_edit.py` must pass: a FAIL means fix, not ship.
 4. Deliver the titled mp4 and its `.srt`; say which provider cut it and what that provider does not do. You cannot watch or hear it: say so.
@@ -190,12 +200,12 @@ Everything renders through the `html` provider (`render.sh ... --provider html`)
 | lower third or sting over footage | `render.sh ... out.mov --alpha 1`, then an `overlays` clip in `edit.json` | `examples/overlay-lowerthird/` |
 
 Review motion-graphics stills before the full render (`--stills`), keep lower thirds above the bottom 20% when captions are on, and render a whole
-video on one backend (GPU or software, not both). The renderer warns if a scene is not deterministic: treat that warning as a failed render.
+video on one backend (GPU or software, not both). A scene that is not deterministic is refused by the preflight (exit 4); a `WARNING` after the run means the same: treat it as a failed render.
 Type sizes, colour discipline, easing and spring functions, transitions that carry something across a cut, and the critic rubric: `reference/visual-craft.md`.
 
 ## Quality gates (all must hold)
 
-Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1 (-14 for a reel), peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · no blank picture, every
+Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1 (-14 for a reel), peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · layout lint without an ERROR (html scenes) · no blank picture, every
 `qa_frames.py` WARN looked at · the voice read the script (`verify_narration.py`) · every claim in the claims table · sources on the
 end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent.
 Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer.
@@ -211,6 +221,8 @@ Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, capti
 | narration "too long" | shorten the script (2.6 words/s); or `--speed 1.05` when narrating; never time-stretch afterwards |
 | multi-line text on one line, wrong alignment, odd fonts (effectcraft) | `reference/effectcraft-scripting.md` (`\n`, justification, PostScript names) |
 | HTML scene never starts or animates on its own clock | `reference/html-scenes.md` (`seek(t)` contract, take over CSS animations with `getAnimations()`) |
+| `html: the scene is not a pure function of t` (exit 4) | the preflight visited five times forward and backward and a frame differed: remove the history (a timer, an unseeded random, state built up per frame); `--preflight 0` skips it, and the frames then are not what you previewed |
+| `html lint` reports an ERROR | `frame`/`clipped`: text cut off, resize or move it; `overlap`/`occluded`: two texts collide or a panel covers one; opt out per element with `data-cv-*` only when it is meant (`reference/motion-graphics.md`) |
 | FilmCraft "no sequence is open" | the headless engine starts empty: use `assemble.sh`, which builds the sequence in the same run |
 | `voxcpm` import fails after a VoiceStudio re-setup | `uv pip install --python $VOICESTUDIO_DIR/.venv/bin/python "voxcpm>=2.0.3"` (setup removes it) |
 | a word is missing from the captions, or `captions: warning: N word(s) fall in removed spans` | the transcript's times were off; `transcribe.sh` snaps them to the voice, so re-run it on the same file; check `review.md` |

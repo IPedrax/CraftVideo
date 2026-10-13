@@ -4,6 +4,8 @@
 # SCENES is an .html file that defines window.craftvideo.seek(t); see reference/html-scenes.md and examples/html-hello/.
 #   html.sh SCENES OUT.mp4 --width W --height H --fps N --duration S [--timeline F] [--stills "t1 t2" --sheet F]
 #           [--gpu off|auto|vulkan|egl] [--alpha 1 (OUT.mov, transparent, ProRes 4444)] [--root DIR]
+#           [--workers N|auto] [--shutter DEG --subframes N] [--grain S] [--preflight 0]   (see the header of html-render.mjs)
+#           [--lint 1]   (OUT is a json report of layout faults, no video)
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"; source "$HERE/lib.sh"
 MJS="$CV_HERE/providers/render/html-render.mjs"
 case "${1:-}" in

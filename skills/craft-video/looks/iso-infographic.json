@@ -1,0 +1,19 @@
+{
+  "id": "iso-infographic",
+  "name": "Isometric infographic: tan ground, three tones per hue",
+  "for": "how a system, a supply chain or a city works: objects in true isometric, a route line that leads the eye",
+  "color": { "ground": "#F2E6D0", "surface": "#E5D5B8", "ink": "#2E2522", "muted": "#6B5C4B", "accent": "#3C7FB1", "signal": "#C8553D" },
+  "tones": { "blue": ["#5A9BCB", "#3C7FB1", "#2D6390"] },
+  "type": {
+    "display": { "family": "Jost", "fallback": "Noto Sans, sans-serif", "weight": 600, "size": 0.07, "caps": true },
+    "text":    { "family": "Jost", "fallback": "Noto Sans, sans-serif", "weight": 500, "size": 0.039 },
+    "label":   { "family": "Jost", "fallback": "Noto Sans, sans-serif", "weight": 600, "size": 0.041, "caps": true }
+  },
+  "motion": { "ease": "icons pop on the beat", "note": "one hue per meaning; true 30 degree isometric, never rotated; keep the bottom 16% clear for subtitles" },
+  "camera": "log zoom; a faint dot lattice for empty ground to slide against",
+  "texture": { "grain": 6 },
+  "caption": { "style": "box", "y": 0.86 },
+  "avoid": ["alpha on moving solids", "rotating the isometric view"],
+  "sound": { "mood": "kalimba and marimba, J-cuts", "bpm": [92, 112], "duck_db": 10 },
+  "source": "colour roles, tones and sizes after lemo-opuscar's iso-infographic notes (MIT); surface, muted and signal are ours"
+}

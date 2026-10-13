@@ -1,0 +1,18 @@
+{
+  "id": "whiteboard",
+  "name": "Whiteboard: ink strokes on a board that travels",
+  "for": "teaching a process step by step; the drawing finishes on the spoken word",
+  "color": { "ground": "#FBFBF9", "surface": "#EEEDE9", "ink": "#23262C", "muted": "#5C626B", "ghost": "#9AA0A8", "accent": "#2A5CB3", "signal": "#D97757" },
+  "type": {
+    "display": { "family": "Caveat", "fallback": "cursive", "weight": 600, "size": 0.14 },
+    "text":    { "family": "Caveat", "fallback": "cursive", "weight": 500, "size": 0.041 },
+    "label":   { "family": "Caveat", "fallback": "cursive", "weight": 500, "size": 0.045 }
+  },
+  "motion": { "ease": "strokes go slow, fast, slow, timed so each ends on the spoken word", "note": "titles 11 to 18% of the height, labels 3 to 6.5%; ghosts of the next step at 5 to 10% ink; bottom 12% clear for subtitles" },
+  "camera": "travels across one large board; no cuts",
+  "texture": { "grain": 4, "note": "dry-marker speckle on strokes" },
+  "caption": { "style": "plain", "y": 0.88 },
+  "avoid": ["hands", "cursors", "a stroke without a sound"],
+  "sound": { "mood": "every stroke sounds; sparse piano", "bpm": [80, 100], "duck_db": 10 },
+  "source": "colour roles and size ranges after lemo-opuscar's whiteboard notes (MIT); surface and the typeface choice are ours"
+}

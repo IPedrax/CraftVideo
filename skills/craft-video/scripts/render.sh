@@ -3,6 +3,8 @@
 #   render.sh scenes out.mp4 [--provider NAME] [--timeline timeline.json] [--width 1920] [--height 1080] [--fps 30] [--duration S]
 #             [--brand brand.jsx] [--project out.proj] [--stills "t1 t2 ..." --sheet sheet.png]
 #             [--alpha 1 (transparent overlay: OUT must be .mov)] [--gpu off|auto|vulkan|egl] [--root DIR]   (html provider)
+#             [--workers N|auto] [--shutter 180 --subframes 8] [--grain 8] [--preflight 0]                    (html provider: speed, motion blur, grain, skip the determinism preflight)
+#             render.sh scene.html report.json --provider html --lint 1 [--timeline T] [--width W --height H --duration S]   (html provider: audit the layout, write a report, no video)
 # What "scenes" is depends on the provider: .jsx (effectcraft), .html (html), anything (command). --duration defaults to
 # "total" in the timeline, else 30. With --stills it renders review frames into one contact sheet instead of a video.
 # Provider order: --provider, env CRAFTVIDEO_RENDER, ./craftvideo.json, ~/.config/craftvideo/config.json, then effectcraft, html.
@@ -10,12 +12,13 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 SCENES="${1:?usage: render.sh scenes out.mp4 [--provider NAME] [options]}"; OUT="${2:?output mp4}"; shift 2
-PROV=""; W=1920; H=1080; FPS=30; DUR=""; TL=""; STILLS=""; ALPHA=""; EXTRA=()
+PROV=""; W=1920; H=1080; FPS=30; DUR=""; TL=""; STILLS=""; ALPHA=""; LINT=""; EXTRA=()
 while [ $# -gt 0 ]; do
   [ $# -ge 2 ] || cv_die "option $1 needs a value"
   case "$1" in
     --provider) PROV="$2";; --width) W="$2";; --height) H="$2";; --fps) FPS="$2";; --duration) DUR="$2";; --timeline) TL="$2";;
     --stills) STILLS="$2";;
+    --lint) LINT="$2";;
     --alpha) ALPHA="$2"; EXTRA+=("$1" "$2");;
     *) EXTRA+=("$1" "$2");;
   esac; shift 2
@@ -36,6 +39,11 @@ if [ -n "$STILLS" ]; then
   [ "$(cv_info render "$NAME" stills)" != "False" ] && [ "$(cv_info render "$NAME" stills)" != "false" ] || cv_die "provider '$NAME' cannot render stills; render the video and extract frames with ffmpeg"
   bash "$(cv_provider_script render "$NAME")" "$SCENES" "$OUT" "${ARGS[@]}" "${EXTRA[@]}" --stills "$STILLS"
   exit 0
+fi
+
+if [ "$LINT" = 1 ] || [ "$LINT" = true ]; then       # a layout audit: no video, a report; exit 1 when it finds an error
+  [ "$NAME" = html ] || cv_die "--lint audits HTML scenes: use --provider html (got '$NAME')"
+  exec bash "$(cv_provider_script render "$NAME")" "$SCENES" "$OUT" "${ARGS[@]}" "${EXTRA[@]}" --lint 1
 fi
 
 bash "$(cv_provider_script render "$NAME")" "$SCENES" "$OUT" "${ARGS[@]}" "${EXTRA[@]}"

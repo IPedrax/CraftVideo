@@ -24,6 +24,19 @@ Total length 15 to 30 s is the sweet spot (this suite handles up to about 60 s; 
 - **Every frame postable.** Any frozen frame is worth sharing.
 - **Only supportable claims.** No invented numbers or testimonials. See the claims table below.
 
+### More laws, from studying Motionmaxxing's skill (Apache-2.0; reported by it, written here in our words)
+
+- **Every beat buys one belief.** Write "Buys: the viewer ..." for each beat in the storyboard; cut a beat whose loss costs no belief, split one that needs "and".
+- **Spend emphasis.** Give each beat an importance of 1 to 3; at most a quarter are 3 (scale, camera, the hit). If everything arrives, nothing does.
+- **Plan events, not end states.** For each beat say what moves and what that causes. The picture has its own job: it shows what the sentence only names.
+- **Mark the words that need a visual**: every number, abstract noun, name and contrast word in the script.
+- **Mute test**: with the sound off the picture still tells the story, and type carries only the words that matter.
+- **Show the consequence, then name it; answer whatever you open.**
+- **Shape of time**: the strongest frame sits at 60 to 75% of the length, beats shorten toward it, the last one lingers.
+- **Cut the script tells** that mark text as generated: "Not just X, it's Y", runs of one-word sentences, "Meet X", "the future of".
+- Where this file and that author's taste differ (it bans counters, section chips, captions, disclaimers and any end card held past 1.4 s, which suits brand launch films), ours wins for
+  explainers: claims need sources and EXAMPLE labels, reels need captions, a tracker can orient a list.
+
 ## Tones (pick one, or write your own direction)
 
 `default` punchy and clean (4 to 5 scenes) · `polished` serious, long holds (3 to 4 scenes) · `deadpan` calm and dry ·
@@ -38,7 +51,8 @@ brag draws frames as a pure function of time and plans scene durations on paper.
 
 - A number counts up so it lands as the word is said (finish the count 0.2 to 0.5 s after the word starts).
 - The visual for a sentence appears 0.1 to 0.3 s before its first word, not after.
-- Leave the last 0.8 to 1 s as a held end card, and give the narration 0.4 s of lead-in.
+- A held end card lasts as long as it takes to read: 3 to 4 s for a sources card, 0.8 to 1.4 s for a plain mark. It is at most a quarter of the video, quieter than the climax, and keeps
+  one thing alive (a drift, a caret, the bed breathing). Give the narration 0.4 s of lead-in (0.1 s for a reel, `reference/short-form.md`).
 - 2.6 words per second is VoxCPM2's natural pace: 75 to 80 words is about 30 s. Count before you generate.
 
 ## plan.md template (write it to `plan.md` in the video's folder, see SKILL.md)
@@ -49,8 +63,8 @@ brag draws frames as a pure function of time and plans scene durations on paper.
 **Tone.** preset or freeform. **Visual identity.** the brand file used (colours, fonts, signature marks).
 
 ## Storyboard
-| Time | Scene | On screen | Narration (cue = sentence start in timeline.json) |
-|---|---|---|---|
+| Time | Scene | Buys: the viewer ... | Importance 1 to 3 | On screen | Narration (cue = sentence start in timeline.json) |
+|---|---|---|---|---|---|
 
 ## Claims and where each one comes from
 - <claim>: <primary source link>, date. Press-only claims are listed as such and appear on screen as "reported".

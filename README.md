@@ -38,7 +38,8 @@ Built for **Claude Code**. Developed and tested on Linux with an NVIDIA GPU (see
 | Narrate | script (one sentence per line) to speech, any TTS provider, normalised to 48 kHz mono | [`narrate.sh`](skills/craft-video/scripts/narrate.sh) |
 | Verify | transcribe the take and list every script line that came back different (a dropped, added or swapped word) | [`verify_narration.py`](skills/craft-video/scripts/verify_narration.py) |
 | Tighten | land on an exact length, find every sentence start, write the cues (when the voice runs sentences together, [`split_narration.py`](skills/craft-video/scripts/split_narration.py) finds the boundaries from word times first) | [`tighten_voice.py`](skills/craft-video/scripts/tighten_voice.py) |
-| Scenes | scripted picture timed to the cues, any render provider, exact size, fps and frame count | [`render.sh`](skills/craft-video/scripts/render.sh) |
+| Anchor | name the words a scene must land on (a count-up that ends on "45%", a reveal on "padlock"); `timeline.json` gains `moments`, so a new voice re-times everything | [`anchors.py`](skills/craft-video/scripts/anchors.py) |
+| Scenes | scripted picture timed to the cues, any render provider, exact size, fps and frame count. The `html` provider also takes `--look` (nine art directions as data), `--workers` (parallel capture, identical frames), `--shutter` and `--grain`, refuses a scene that depends on history before encoding, and `--lint 1` audits the layout (text cut off, overlapping, hidden, too small, in the caption band, low contrast) | [`render.sh`](skills/craft-video/scripts/render.sh), [`looks/`](skills/craft-video/looks/README.md) |
 | Review | contact sheet of stills for every scene and mid-transition, before the full render, then a scored critic pass (hook, hierarchy, readable, alive, sound, truth) | `render.sh --stills`, [`visual-craft.md`](skills/craft-video/reference/visual-craft.md) |
 | Score | generated music that follows the scene cuts and ducks under the voice | [`synth_music.py`](skills/craft-video/scripts/synth_music.py) |
 | Mix | picture + voice + music to one mp4 at the target loudness, optional editor timeline | [`assemble.sh`](skills/craft-video/scripts/assemble.sh) |
@@ -221,7 +222,8 @@ Built and tested against a real 30-second video, then generalised:
 - **The bug real speech found.** Whisper stretched the first word of a sentence up to 0.7 s back into the silence, so three sentence openers fell inside "removed" spans and vanished from the captions. Word times are now snapped onto the voiced audio, and captions warn about any word the cuts drop without a planned reason.
 - **The Three.js bug that broke determinism.** With a composer and output pass, setting the background through the clear colour double-encoded it (`0x0a0a0b` rendered as `0x38383b`) and made the first frame differ from every later one. `scene.background` fixes it, and the renderer now seeks back to 0 after a run and warns if the frame changed. Also found: ffmpeg 9 removed `-filter_complex_script`; `acompressor`'s `makeup` is linear, not dB (it silently undid the denoise); `drawtext` mangles `%`; a bare `requestAdapter()` returns null on a hybrid-GPU machine; a headless WebGPU canvas reads back empty (render to a texture and read it back); the `sin()` hash differs between GPU and software.
 - **Five reels, measured.** Five public vertical reels about AI-made video were measured with these same tools (pace, cuts, how much of the picture barely changes, tempo, loudness). All five speak within 0.2 s, run 117 to 298 words a minute (median 185, against 156 here), and sit at -14 LUFS after the platform's normalisation. The new picture gate then found that two videos made with this suite barely change for 56% and 66% of their length, with stretches of up to 6.9 s, against 2% to 69% and at most 4.2 s in the reels. Details and what changed in the skill: `reference/short-form.md`, `reference/visual-craft.md`.
-- **Not yet tested:** a second video made from scratch by a fresh agent following only `SKILL.md`; importing the interchange files into other editors; vertical and square formats for made videos; long recordings; a real img2threejs reconstruction.
+- **The renderer, measured.** With default options the rewritten `html` provider reproduces the previous output frame for frame; `--workers 4` cut a DOM scene from 35 to 9 ms a frame with identical frames (software WebGL gains nothing: it already uses every core); the shutter turns a hard-edged mover into a 16-level soft one; a scene that depended on how often it was seeked is refused before encoding. The layout lint found every planted fault and nothing else, raised no errors on four real scenes of an 87 s video (after a first version raised three false overlap errors, fixed by measuring ink instead of line boxes), and caught a bad body-text size in its own Swiss look.
+- **Not yet tested:** a second video made from scratch by a fresh agent following only `SKILL.md`; a `--workers` render on a real GPU; the lint on the one scene that needs WebGPU; importing the interchange files into other editors; vertical and square formats for made videos; long recordings; a real img2threejs reconstruction.
 
 ---
 
@@ -304,12 +306,14 @@ skills/craft-video/
 │   ├── analyze.py  plan_edit.py  captions.py  qa_edit.py  review_edit.py  interchange.py  transcript_norm.py     the editing core
 │   ├── get_three.sh  bundle.sh                   the 3D toolchain (three.js, TypeScript bundling)
 │   ├── providers.sh  conformance.sh  preflight.sh  lib.sh
-│   ├── tighten_voice.py  split_narration.py  verify_narration.py  synth_music.py  finish.sh  qa_sync.py  qa_frames.py
+│   ├── tighten_voice.py  split_narration.py  verify_narration.py  anchors.py  synth_music.py  finish.sh  qa_sync.py  qa_frames.py
+│   ├── find_retakes.py  check_looks.py
 │   └── build.sh  stills.sh  voicestudio-backend  (EffectCraft and VoiceStudio helpers)
+├── looks/                       nine looks (colour, type, motion, sound roles as JSON) and their README
 ├── jsx/                         EffectCraft helper library + the default brand
 ├── reference/                   providers.md, edit.md, motion-graphics.md, visual-craft.md, short-form.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
 ├── fixtures/                    tiny inputs for the conformance tests (script, real speech, synthetic footage and its ground-truth check)
-└── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird
+└── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird, looks-demo, continuous-camera
 ```
 
 ---
@@ -337,3 +341,9 @@ CraftVideo makes videos out of graphics, text, numbers, diagrams and a voice. It
 CraftVideo is [MIT](LICENSE).
 
 The storyboard method is from [latent-spaces/brag](https://github.com/latent-spaces/brag) (MIT), read at runtime from an OmniSkill install when present and condensed in `reference/storyboard.md`. The default brand fonts (Big Shoulders Display, IBM Plex Mono) are SIL OFL. VoiceStudio (AGPL-3.0), EffectCraft and FilmCraft (MIT or Apache-2.0) and every speech model keep their own licences and are not redistributed here.
+
+**Studied, not copied.** Design rules, measured numbers and ideas in `reference/visual-craft.md`, `reference/short-form.md`, the render options, the layout lint and the looks come from reading the public repositories of
+[Motionmaxxing](https://github.com/Tejashmakwana/motionmaxxing) (Apache-2.0), [HyperFrames](https://github.com/heygen-com/hyperframes) (Apache-2.0), [Lemo-Opuscar](https://github.com/lemomo-ai/lemo-opuscar) (MIT, whose
+style notes became the colour and type data in `looks/`) and the HyperFrames student kit (MIT, the idea behind `find_retakes.py`), and from measuring five public reels. [onetake](https://github.com/feitangyuan/onetake)
+(PolyForm Noncommercial) and [Hypit](https://github.com/hypit-ai/hypit) (source-available, commercial use restricted) were read for ideas only. None of their code or prose is in this repository: each tool here is our own
+implementation and its header or reference says where the idea came from. The videos analysed are not included.
