@@ -1,0 +1,7 @@
+{
+  "bpm": 84,
+  "offset": 0.49,
+  "outline": 3,
+  "on": [ { "from": 0, "to": 5, "side": "right", "u": 30, "margin": 0.08, "enter": "neutral" } ],
+  "cues": [ [1.15, "happy", { "wave": true }], [3.3, "neutral"] ]
+}

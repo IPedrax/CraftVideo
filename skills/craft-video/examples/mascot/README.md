@@ -15,7 +15,10 @@ ffmpeg -f lavfi -i "color=c=0x14161f:s=1920x1080:r=30:d=24" -f lavfi -i "sine=fr
 bash $S/mascot.sh mascot.json clawd.mov --timeline timeline.json --workers auto --over picture.mp4 --into picture-clawd.mp4
 ```
 
-The cues: he walks on from the right 1.4 s before the claim, is surprised 0.4 s after the claim has landed (looking left, at the picture), has an idea 0.4 s into the number, and leaves 1.8 s after it;
+`hello.json` is the smallest useful one: a 5 s hello, no timeline needed (`bash $S/mascot.sh hello.json hello.mov --width 1920 --height 1080 --fps 24 --workers auto`): he walks on from the right, turns to face the camera, waves for 2.15 s
+(`[1.15, "happy", {"wave": true}]`, until the neutral cue at 3.3 s) and walks off. Rendered here: 120 frames in 43 s with 3 workers, the review sheet in 5 s; the arm is raised and swinging at 1.36 s and 1.70 s and down at 3.85 s.
+
+The cues of `mascot.json`: he walks on from the right 1.4 s before the claim, is surprised 0.4 s after the claim has landed (looking left, at the picture), has an idea 0.4 s into the number, and leaves 1.8 s after it;
 then he walks on again 0.6 s before the wrap, and is proud, in a crown, 0.8 s after it. Each face is held well over 0.6 s and nothing fires while he walks.
 
 ## What it proved (measured here)

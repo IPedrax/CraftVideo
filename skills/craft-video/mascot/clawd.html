@@ -57,6 +57,19 @@
     for (const t of at) { T = t; const p = cvPose(T), b = p && cvBox(p); if (b) { await cvGrab("white", b); await cvGrab("black", b); } }
   }
 
+  // A wave. A cue whose overrides say "wave" ({"wave": true}, or {"wave": {"arm": "R", "hz": 2.8, "amp": 0.5, "base": 1.22}}) raises that arm on a spring, swings it about `base` by `amp` radians
+  // `hz` times a second until the next cue (or until he turns to leave), then lowers it into the face's own arm swing. Arm angles are the kit's: 0 straight out, positive up. A pure function of t.
+  const wvSpring = (t, z = 0.5, w = 20) => { if (t <= 0) return 0; const wd = w * Math.sqrt(1 - z * z); return 1 - Math.exp(-z * w * t) * (Math.cos(wd * t) + (z * w / wd) * Math.sin(wd * t)); };
+  function cvWave(t, a, mood) {
+    let i = 0; while (i + 1 < a.cues.length && t >= a.cues[i + 1][0]) i++;
+    const over = a.cues[i][2] || {}; if (!over.wave) return mood;
+    const wv = { arm: "R", hz: 2.8, amp: 0.5, base: 1.22, ...(typeof over.wave === "object" ? over.wave : {}) };
+    const tc = a.cues[i][0], end = i + 1 < a.cues.length ? a.cues[i + 1][0] : a.to - MS.walk - MS.turn, age = t - tc;
+    const k = wvSpring(age - 0.05) * (1 - ease(seg(t, end - 0.35, end)));                 // how much of the wave is in the arm: it springs in and fades out into the face's own swing
+    const env = ease(seg(age, 0.3, 0.6)) * (1 - ease(seg(t, end - 0.4, end - 0.1))), ph = 2 * Math.PI * wv.hz * (age - 0.3), f = wv.arm === "L" ? "aL" : "aR";
+    return { ...mood, [f]: lerp(mood[f] ?? 0.2, wv.base + wv.amp * env * Math.sin(ph), k), rot: (mood.rot || 0) + 0.04 * env * Math.sin(ph) };
+  }
+
   // Where the mascot is on the frame and how it is posed at video time t: the arguments for clawd() (x and y are the frame's), or null while it is off screen.
   // It walks in from the edge, turns to face the camera, acts its cues, turns, and walks out. The kit's stroll() and turn() do the walking and the drawn turns.
   function cvPose(t) {
@@ -71,7 +84,7 @@
     else if (t < tIn + tn) pose = turn(t, tIn, tIn + tn, -dir * 0.25, 0);
     else if (t >= tOut) { const k = walk(tOut, a.to, rest, off); x = k.x; pose = k.pose; moving = true; }
     else if (t >= tOut - tn) pose = turn(t, tOut - tn, tOut, 0, dir * 0.25);
-    const mood = emotions(t, a.cues);
+    const mood = cvWave(t, a, emotions(t, a.cues));
     // a pose and a mood that both move dy or sq are added, never replaced
     return { x, y: FH * a.ground, u, o: { ...mood, ...pose, dy: (mood.dy || 0) * (moving ? 0.35 : 1) + (pose.dy || 0), sq: (mood.sq || 0) + (pose.sq || 0), noShadow: true } };
   }

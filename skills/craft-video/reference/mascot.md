@@ -89,7 +89,22 @@ one the kit has) and warns about a face held under 0.6 s and a cue that fires wh
 
 Overrides are the kit's own options: `hat` (party, hard, crown, halo, wizard, hood, top, fedora, band, sweatband, beanie, bow, flower, headphones, cat, masq, mask, bowtie), `emote` (the painted marks:
 `!` `?` `!!` `!?` zzz sweat spark heart hearts anger steam bulb dots scribble music swirl stars cloud), `lookX` and `lookY` (-1 to 1: where the eyes aim), `view` (front, q, side, qback, back), `flip`,
-`blush`, `gloom`, `lid`, `squint`, `tint`, `rot`, `dx`, `dy`, `sq`, `aL` and `aR` (arm angles). `mascot.py --emotions` lists the faces, the hats and the marks.
+`blush`, `gloom`, `lid`, `squint`, `tint`, `rot`, `dx`, `dy`, `sq`, `aL` and `aR` (arm angles), and ours: `wave` (below). `mascot.py --emotions` lists the faces, the hats and the marks.
+
+## A wave
+
+`["@intro", "happy", {"wave": true}]` makes him wave until the next cue (or until he turns to leave): the arm springs up in about 0.3 s, swings a few times, and lowers into the face's own arm swing 0.35 s before the
+next cue, so there is no jump. `{"wave": {"arm": "L", "hz": 2.8, "amp": 0.5, "base": 1.22}}` changes it: `arm` is `R` (the viewer's right, the default) or `L`, `hz` the strokes a second (0.5 to 6),
+`amp` the swing and `base` the raised angle in radians (0 is straight out, positive up). The body tilts a few degrees with each stroke. A wave needs about 1.4 s (`mascot.py` warns below that), and `happy` is the face for
+it (its arches, blush and beat); the quiet arm keeps the face's own swing. At 24 fps a wave at 2.8 Hz takes 8.6 frames a cycle (4.3 a stroke), which reads as a wave without motion blur.
+
+`examples/mascot/hello.json` is a whole 5 s hello: he walks on, turns, waves for 2 s and walks off. As a standalone clip on a plain ground:
+```bash
+bash $S/mascot.sh hello.json hello.mov --width 1920 --height 1080 --fps 24 --workers auto               # 43 s on the CPU with 3 workers
+ffmpeg -f lavfi -i "color=c=0x1F2550:s=1920x1080:r=24:d=5" -i hello.mov -filter_complex "[1:v]format=yuva444p[m];[0:v][m]overlay=0:0:eof_action=pass:format=auto,format=yuv420p" -c:v libx264 -crf 14 hello-card.mp4
+```
+He stands where he stops walking, at the edge he came from (`side`, `margin`), so a wave is a greeting from the corner of the frame. Waving from the middle of the frame is a different scene: the stock page only
+walks on and off, so a centred wave needs its own pose function (the page's `cvPose`, see "How it is built").
 
 ## The 31 faces
 

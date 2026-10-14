@@ -17,7 +17,7 @@ spoken cue. **Edit** takes a recording and cuts, cleans, captions and levels it 
 | shorts or clips out of a long recording (a podcast, talk, stream, interview): find the moments, cut each as a vertical short | **B: edit**, long to short | "Mode B" below, then `reference/clips.md` |
 | a landscape recording as 9:16 with the speaker kept in frame | **B: edit**, `--reframe face` | `reference/edit.md`, "Following the speaker's face" |
 | 3D, shaders, kinetic type, lower thirds or other motion graphics in either | **C: motion layer** | "Motion graphics and 3D" below, then `reference/motion-graphics.md` |
-| a mascot on the video: Clawd, hand-painted, reacting to the narration | **C: motion layer** | `reference/mascot.md` (it says when a mascot fits and when it does not) |
+| a mascot on the video: Clawd, hand-painted, reacting to the narration, or waving hello | **C: motion layer** | `reference/mascot.md` (it says when a mascot fits and when it does not) |
 | vector animation: draw-on lines, morphs, springs, an animated SVG on a video or as an overlay | **C: motion layer** | `reference/vector-animation.md`, `examples/vector-svg/`, `scripts/vector.sh` |
 | pixel art: a scene with sprites and a palette, or footage turned into pixel art | **C: motion layer** | `reference/pixel-art.md`, `examples/pixel-art/`, `scripts/pixelate.py` |
 

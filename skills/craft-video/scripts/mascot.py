@@ -11,6 +11,7 @@ mascot.json (reference/mascot.md has the craft):
     "outline": 3,                                  a paper-cream die-cut edge in px at 1080 high (0 = none): keeps the dark ink marks readable on a dark picture
     "on":   [ { "from": "@reveal-0.4", "to": 21.0, "side": "right", "u": 22, "enter": "neutral" } ],      one entry per appearance
     "cues": [ ["@reveal", "surprised"], ["@proof.end+1.2", "happy", {"emote": "spark"}] ] }              what it feels: [time, emotion, overrides?]
+A cue can make him wave until the next cue: ["@intro", "happy", {"wave": true}] (or {"wave": {"arm": "L", "hz": 2.8, "amp": 0.5, "base": 1.22}}).
 A time is seconds, or "@moment" (a name in timeline.json's moments, see anchors.py), with ".end" for the end of that moment and "+0.4" / "-0.4" as an offset:
 "@reveal", "@reveal.end", "@reveal-0.4", "@proof.end+0.3". Every problem is reported in one run and nothing is written unless there are none.
 """
@@ -21,7 +22,9 @@ EMOTIONS = ("happy excited laugh love proud starstruck playful hopeful relieved 
             "angry furious determined disgusted scared nervous surprised confused dizzy neutral thinking idea shy").split()
 HATS = "party hard crown halo wizard hood top fedora band sweatband beanie bow flower headphones cat masq mask bowtie".split()
 EMOTES = ["!", "?", "!!", "!?", "zzz", "sweat", "spark", "heart", "hearts", "anger", "steam", "bulb", "dots", "scribble", "music", "swirl", "stars", "cloud"]
-OVERRIDES = set("hat emote emoteK lookX lookY view flip blush gloom lid squint tint tintK rot dx dy sq aL aR eyes mouth seed smear smearDir noLegs sx sy col dk lt".split())
+OVERRIDES = set("hat emote emoteK lookX lookY view flip blush gloom lid squint tint tintK rot dx dy sq aL aR eyes mouth seed smear smearDir noLegs sx sy col dk lt wave".split())
+WAVE = {"arm": ("R", "L"), "hz": (0.5, 6.0), "amp": (0.0, 1.0), "base": (0.4, 1.6)}   # wave: true, or any of these; arm R is the viewer's right, base and amp are radians (0 straight out, positive up)
+MIN_WAVE = 1.4     # a wave springs up in 0.3 s, needs a few strokes, and lowers in 0.35 s
 DEFAULTS = {"side": "right", "u": 22.0, "margin": 0.05, "ground": 0.80}   # u is the body unit in px at 1080 high; ground is where the feet stand (the caption band starts at 0.82)
 MIN_HOLD = 0.6      # a face needs about half a second to be found, understood and to register before the next one
 
@@ -110,6 +113,14 @@ def resolve(cfg, moments, duration=None):
             continue
         for k, v in over.items():
             if k not in OVERRIDES: errors.append(f"{where}: unknown override '{k}'")
+        w = over.get("wave")
+        if "wave" in over and w is not True and not isinstance(w, dict):
+            errors.append(f"{where}: wave is true or an object with arm, hz, amp, base (got {w!r})")
+        elif isinstance(w, dict):
+            for k, v in w.items():
+                if k not in WAVE: errors.append(f"{where}: unknown wave setting '{k}' (arm, hz, amp, base)")
+                elif k == "arm" and v not in WAVE["arm"]: errors.append(f"{where}: wave.arm must be R or L")
+                elif k != "arm" and not (isinstance(v, (int, float)) and not isinstance(v, bool) and WAVE[k][0] <= v <= WAVE[k][1]): errors.append(f"{where}: wave.{k} {v!r} is outside {WAVE[k][0]:g} to {WAVE[k][1]:g}")
         if over.get("hat") not in (None, *HATS): errors.append(f"{where}: unknown hat '{over['hat']}'")
         if over.get("emote") not in (None, *EMOTES): errors.append(f"{where}: unknown emote '{over['emote']}'")
         if t is None or name not in EMOTIONS:
@@ -130,6 +141,9 @@ def resolve(cfg, moments, duration=None):
         for k, n in zip(a["cues"], a["cues"][1:]):
             if n[0] - k[0] < MIN_HOLD:
                 warnings.append(f"{k[1]} at {k[0]:.2f} s is held {n[0] - k[0]:.2f} s before {n[1]}: a face needs about {MIN_HOLD:g} s to be read")
+        for k, n in zip(a["cues"], a["cues"][1:] + [[a["to"] - walk - turn, "", {}]]):
+            if k[2].get("wave") and n[0] - k[0] < MIN_WAVE:
+                warnings.append(f"the wave at {k[0]:.2f} s lasts {n[0] - k[0]:.2f} s (to the next cue or the turn to leave): it needs about {MIN_WAVE:g} s to spring up, swing a few times and lower")
         for k in a["cues"][1:]:
             if k[0] < a["from"] + walk + turn: warnings.append(f"{k[1]} at {k[0]:.2f} s fires while it is still walking in")
             if k[0] > a["to"] - walk - turn: warnings.append(f"{k[1]} at {k[0]:.2f} s fires while it is leaving")
@@ -170,6 +184,20 @@ def selftest():
             assert want in str(e), (want, str(e))
         else:
             raise AssertionError(f"accepted {c}")
+    ok = {"on": [{"from": 1, "to": 12}], "cues": [[4, "happy", {"wave": True}], [7, "neutral"], [8, "happy", {"wave": {"arm": "L", "hz": 3, "amp": 0.4, "base": 1.3}}]]}
+    spec2, _, _, _, w2 = resolve(ok, {}, 60); assert spec2["mascot"]["on"][0]["cues"][1][2] == {"wave": True} and not any("wave" in x for x in w2), w2
+    for c, want in (({"on": [{"from": 1, "to": 12}], "cues": [[4, "happy", {"wave": "yes"}]]}, "wave is true or an object"),
+                    ({"on": [{"from": 1, "to": 12}], "cues": [[4, "happy", {"wave": {"arm": "up"}}]]}, "wave.arm must be R or L"),
+                    ({"on": [{"from": 1, "to": 12}], "cues": [[4, "happy", {"wave": {"hz": 20}}]]}, "wave.hz 20 is outside 0.5 to 6"),
+                    ({"on": [{"from": 1, "to": 12}], "cues": [[4, "happy", {"wave": {"speed": 2}}]]}, "unknown wave setting 'speed'")):
+        try:
+            resolve(c, {}, 60)
+        except Bad as e:
+            assert want in str(e), (want, str(e))
+        else:
+            raise AssertionError(f"accepted {c}")
+    assert any("the wave at 4.00 s lasts 0.90 s" in x for x in resolve({"on": [{"from": 1, "to": 12}], "cues": [[4, "happy", {"wave": True}], [4.9, "neutral"]]}, {}, 60)[4])
+    assert any("the wave at 10.00 s lasts" in x for x in resolve({"on": [{"from": 1, "to": 12}], "cues": [[10, "happy", {"wave": True}]]}, {}, 60)[4])      # a last cue waves until he turns to leave
     fast = {"on": [{"from": 1, "to": 12}], "cues": [[4, "happy"], [4.3, "sad"]]}
     assert any("held 0.30 s" in w for w in resolve(fast, {}, 60)[4])
     kit = os.path.join(os.environ.get("MASCOT_DIR") or os.path.expanduser("~/.local/share/craftvideo/mascot"), "clawd", "clawd.js")
