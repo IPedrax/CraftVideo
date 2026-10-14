@@ -1,6 +1,6 @@
 ---
 name: craft-video
-description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical (the crop can follow the speaker's face), titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive; and CLIPS: find the best moments in a long recording (podcast, talk, stream, interview) and cut each as a vertical short with a title and kinetic captions. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, a hand-painted mascot (Clawd), and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or to make shorts, clips or Reels out of a long video, find the best moments of a podcast or talk, or turn a landscape recording into a vertical one that keeps the speaker in frame; or for 3D or motion graphics in a video, or a drawn mascot (Clawd, the Claude Code mascot) on a video where it fits. Not for generated live-action footage, talking-head avatars, lip-sync, or photoreal people."
+description: "Make or edit video on your own machine. MAKE: a short narrated motion-graphics video (15 to 60 s, 16:9, 9:16 or 1:1) from a topic, with brag's hook, reveal, highlights, punchline storyboard, then whatever TTS, renderer and editor are available (VoiceStudio or any OpenAI-compatible or command-line TTS; EffectCraft, HTML/CSS/Three.js/WebGPU in headless Chromium, or any renderer; FilmCraft, ffmpeg, or any editor), a generated soundtrack and measured QA gates. EDIT: take a recording (talking head, screen capture with narration, podcast) and cut it professionally: dead air and filler words out, audio denoised and levelled to -16 LUFS, jump-cut zooms, burned-in or sidecar captions, reframing to vertical (the crop can follow the speaker's face), titles, music with ducking, chapters, OTIO or EDL hand-off to Resolve, Premiere, Final Cut or Kdenlive; and CLIPS: find the best moments in a long recording (podcast, talk, stream, interview) and cut each as a vertical short with a title and kinetic captions. Both modes can add 3D and motion graphics: Three.js scenes, img2threejs models, shaders, GSAP, vector animation (SVG scenes, animated SVG assets), pixel art (sprite-sheet scenes, or any footage turned into pixel art that stays pixel-exact), a hand-painted mascot (Clawd), and transparent overlays composited onto the footage. Use when the user asks for a video, explainer, announcement or launch clip, social video (a Reel, Short or TikTok, 9:16), a 'brag' video, 'make a video about X'; or to edit, cut, clean up, caption, tighten or professionalise a recording, remove ums and silences, make a video look more professional; or to make shorts, clips or Reels out of a long video, find the best moments of a podcast or talk, or turn a landscape recording into a vertical one that keeps the speaker in frame; or for 3D or motion graphics in a video, a vector or SVG animation, a pixel-art video or sprite animation, a retro or 8-bit look, or a drawn mascot (Clawd, the Claude Code mascot) on a video where it fits. Not for generated live-action footage, talking-head avatars, lip-sync, or photoreal people."
 ---
 
 # craft-video
@@ -18,6 +18,8 @@ spoken cue. **Edit** takes a recording and cuts, cleans, captions and levels it 
 | a landscape recording as 9:16 with the speaker kept in frame | **B: edit**, `--reframe face` | `reference/edit.md`, "Following the speaker's face" |
 | 3D, shaders, kinetic type, lower thirds or other motion graphics in either | **C: motion layer** | "Motion graphics and 3D" below, then `reference/motion-graphics.md` |
 | a mascot on the video: Clawd, hand-painted, reacting to the narration | **C: motion layer** | `reference/mascot.md` (it says when a mascot fits and when it does not) |
+| vector animation: draw-on lines, morphs, springs, an animated SVG on a video or as an overlay | **C: motion layer** | `reference/vector-animation.md`, `examples/vector-svg/`, `scripts/vector.sh` |
+| pixel art: a scene with sprites and a palette, or footage turned into pixel art | **C: motion layer** | `reference/pixel-art.md`, `examples/pixel-art/`, `scripts/pixelate.py` |
 
 Both can combine: edit a recording, then lay rendered 3D or motion-graphics overlays on it; or make a video whose picture is a Three.js scene.
 
@@ -32,7 +34,7 @@ deliverables in it, working files in its `work/`. Choose the title in step 2, th
 inside that folder. There is no shared output folder.
 `PY="${VIDEO_PY:-${VOICESTUDIO_DIR:-/mnt/ai/VoiceStudio}/.venv/bin/python}"` (any python with numpy, soundfile, PIL works).
 Worked examples with every input file: `examples/decomp-30s/` (EffectCraft + VoiceStudio + FilmCraft), `examples/html-hello/` (HTML scene), and for the
-motion layer `three-3d`, `img2threejs-bridge`, `webgpu-shader`, `gsap-timeline`, `overlay-lowerthird`, `mascot` (see `examples/README.md`).
+motion layer `three-3d`, `img2threejs-bridge`, `webgpu-shader`, `gsap-timeline`, `overlay-lowerthird`, `mascot`, `vector-svg`, `pixel-art`, `clips` (see `examples/README.md`).
 
 ## Adapting to the tools that exist
 
@@ -127,7 +129,7 @@ Check the printed table: each sentence's duration must fit its word count.
 - `effectcraft`: write `work/scenes.jsx` with `jsx/ec_lib.jsx` (`begin`, `background`, `scanbar`, `footer`, `txt`, `rect`, `kicker`, `panel`, `chip`,
   `underscore`, `finish`); start from `examples/decomp-30s/scenes.jsx`; traps in `reference/effectcraft-scripting.md`. `begin({})` follows the render spec.
 - `html`: write `work/scene.html` defining `window.craftvideo.seek(t)`; start from `examples/html-hello/scene.html`; rules in `reference/html-scenes.md`.
-  **A look**: pick one of the nine in `looks/` (`signature`, `dark-keynote`, `dataviz`, `iso-infographic`, `swiss-motion`, `whiteboard`, `blueprint`, `hologram-hud`, `ascii-crt`; the table is in
+  **A look**: pick one of the ten in `looks/` (`signature`, `dark-keynote`, `dataviz`, `iso-infographic`, `swiss-motion`, `whiteboard`, `blueprint`, `hologram-hud`, `ascii-crt`, `pixel-art`; the table is in
   `looks/README.md`), style the scene with its variables (`var(--cv-ink, #f2f2f0)`, `var(--cv-display-size, 9vh)`) and render with `--look NAME`. Its `motion`, `avoid` and `sound` fields are direction for the
   scenes and the music. **One camera, no cuts**: `examples/continuous-camera/` keys a single camera through every beat from `timeline.json`. **An exact word inside a sentence**: list it in `work/anchors.txt`
   and run `anchors.py` (`reference/html-scenes.md`); the scene reads `spec.timeline.moments.name.start`.
@@ -221,6 +223,10 @@ Everything renders through the `html` provider (`render.sh ... --provider html`)
 | shader or generative background | WebGPU/WGSL, or a WebGL fragment shader | `examples/webgpu-shader/` |
 | kinetic type, UI motion, counters, SVG drawing | GSAP on a paused timeline, or CSS/WAAPI | `examples/gsap-timeline/` |
 | lower third or sting over footage | `render.sh ... out.mov --alpha 1`, then an `overlays` clip in `edit.json` | `examples/overlay-lowerthird/` |
+| vector shapes in motion: a line drawing itself, a shape morphing, a packet riding a path, squash and stretch | an SVG in the scene, every attribute set from t (`examples/vector-svg/scene.html`) | `reference/vector-animation.md` |
+| an animated SVG somebody else made (SMIL, CSS, Web Animations), on a background or as an overlay | `bash $S/vector.sh asset.svg out.mp4` (`--alpha 1` and a .mov for an overlay) | `examples/vector-svg/loader.svg` |
+| pixel art: sprites from an Aseprite sheet, a fixed palette, stepped time, crisp text | `pixel/cvpixel.js` in an html scene, `--look pixel-art` | `examples/pixel-art/`, `reference/pixel-art.md` |
+| footage (a made video or a recording) turned into pixel art | `python3 $S/pixelate.py in.mp4 out.mp4 --scale 6 --palette pico8`, then `qa_pixels.py` | `reference/pixel-art.md` |
 | a character that reacts to the narration (Clawd, the Claude Code mascot) | `bash $S/get_mascot.sh` once, then `mascot.sh mascot.json out.mov --sheet` to review and without it to render; `--over picture.mp4 --into out.mp4` lays it over a made video | `examples/mascot/`, `reference/mascot.md` |
 
 Review motion-graphics stills before the full render (`--stills`), keep lower thirds above the bottom 20% when captions are on, and render a whole
@@ -231,7 +237,7 @@ Type sizes, colour discipline, easing and spring functions, transitions that car
 
 Mode A: the file is named after the title and carries it in its metadata · frames = fps x seconds · LUFS -16 +/- 1 (-14 for a reel), peak <= -1 dBFS · sync 0 to 40 ms · poster is frame 0 · layout lint without an ERROR (html scenes) · no blank picture, every
 `qa_frames.py` WARN looked at · the voice read the script (`verify_narration.py`) · every claim in the claims table · sources on the
-end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent · a mascot only where it fits, its review sheet looked at.
+end card · no text outside its panel in any still · nothing invented that is not labelled EXAMPLE · the voice is not `dryrun` · hosted providers only with consent · a mascot only where it fits, its review sheet looked at · pixel art: an even scale, and `qa_pixels.py` passes (the blocks are one colour, the colours are the palette's).
 Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, caption sidecar) · `review.md` read and no real words lost · cuts looked at · no `WARNING` from the renderer · for a face-following crop, frames from every shot looked at (the speaker in frame, a content shot shown whole) · for clips, `find_clips.py validate` passes and every title is true to its clip.
 
 ## If something breaks
@@ -244,6 +250,8 @@ Mode B: `qa_edit.py` passes (length, size, fps, LUFS, true peak, A/V skew, capti
 | `face_track: OpenCV is not available to this python` or `the YuNet model is missing` | `CRAFTVIDEO_ALLOW_DOWNLOAD=1 bash $S/get_face.sh` once, then run `face_track.py analyze` with `~/.local/share/craftvideo/face/venv/bin/python` (every other step needs no OpenCV) |
 | `edit_ffmpeg: warning: reframe face, but segment N has no face track` | the segment lies outside the track (`analyze --ranges` covered other spans) or `face_track.py apply` was not run: the segment got the centred crop; analyse that span and apply again |
 | a clip starts or ends mid-sentence, `find_clips: ERROR ... mid-sentence` | take the bound from the transcript's sentence edges, or `find_clips.py validate --snap` moves it onto the nearest one |
+| `html: the scene is not a pure function of t` on an SVG scene, or CSS animations that differ a sub-pixel between visits | the renderer already disables Chromium's partial raster; a CSS or Web Animation on a transform can still differ (measured 49 dB), so set the style in `seek(t)`, or accept it with `--preflight-psnr 40`; SMIL is exact (`reference/vector-animation.md`) |
+| `pixelate: scale N is odd` or `qa_pixels` FAIL on the grid | 4:2:0 chroma covers 2 x 2 pixels, so an odd scale smears colour into the next pixel (S=3 kept 50% of the blocks, S=5 44%): use 2, 4, 6, 8, 10 or 12; the gate says whether the grid is offset, the scale is another one, or the picture was blended (`reference/pixel-art.md`) |
 | `tighten_voice cannot find the sentence breaks` | the voice runs sentences together: call the engine per sentence with a fixed gap (what `openai` does), or pass `--breaks` |
 | voicestudio `HTTP 503` | another engine holds VRAM: `voicestudio-backend stop`, start again, retry; close ComfyUI or games |
 | narration "too long" | shorten the script (2.6 words/s); or `--speed 1.05` when narrating; never time-stretch afterwards |

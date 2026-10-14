@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vector player</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--cv-ground, #000); }
+  #host, #host > svg { display: block; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<script type="module">
+// Plays an animated vector asset as a pure function of t (vector.sh builds the options into spec.timeline.vector = {asset, fit, period, speed}):
+//   an animated SVG: SMIL is moved with setCurrentTime(), CSS animations and Web Animations are paused and set to the time, so no wall clock is involved;
+//   the SVG is inlined so its <style> and <animate> belong to this page; its <script> elements, on* handlers and links to http(s) are removed (an animation that runs its own
+//   script keeps its own clock and could not be deterministic, and nothing here loads from the network).
+const spec = window.__CV_SPEC, V = spec.timeline?.vector || {};
+if (spec.alpha) document.documentElement.style.background = document.body.style.background = "transparent";
+let ready, ANIMS = [], SMIL = 0;
+async function init() {
+  const res = await fetch(V.asset); if (!res.ok) throw new Error(`vector: cannot load ${V.asset}`);
+  const doc = new DOMParser().parseFromString(await res.text(), "image/svg+xml");
+  if (doc.querySelector("parsererror") || doc.documentElement.localName !== "svg") throw new Error("vector: the asset is not a valid SVG");
+  doc.querySelectorAll("script").forEach((n) => n.remove());
+  doc.querySelectorAll("*").forEach((n) => [...n.attributes].forEach((a) => { if (/^on/i.test(a.name) || /^\s*javascript:/i.test(a.value) || (/^(xlink:)?href$/i.test(a.name) && /^https?:/i.test(a.value))) n.removeAttribute(a.name); }));
+  const host = document.getElementById("host"), svg = document.importNode(doc.documentElement, true); host.replaceChildren(svg);
+  if (!svg.getAttribute("viewBox")) { const w = parseFloat(svg.getAttribute("width")), h = parseFloat(svg.getAttribute("height")); if (w && h) svg.setAttribute("viewBox", `0 0 ${w} ${h}`); }
+  svg.removeAttribute("width"); svg.removeAttribute("height"); svg.setAttribute("preserveAspectRatio", V.fit === "cover" ? "xMidYMid slice" : "xMidYMid meet");
+  await document.fonts.ready;
+  ANIMS = document.getAnimations();                      // kept from here on: a finished animation without a fill drops out of getAnimations(), so later visits to an earlier time would miss it
+  SMIL = svg.querySelectorAll("animate, animateTransform, animateMotion, animateColor, set").length;
+  if (!ANIMS.length && !SMIL) console.error("vector: no animation found in the asset (SMIL, CSS or Web Animations): the video would be a still");
+}
+window.craftvideo = { async seek(t) {
+  await (ready ||= init());
+  const tt = (V.period ? t % V.period : t) * (V.speed || 1);
+  for (const s of document.querySelectorAll("svg")) { s.pauseAnimations(); s.setCurrentTime(tt); }                 // SMIL (moves only an outermost, connected svg)
+  for (const a of ANIMS) { a.pause(); a.currentTime = tt * 1000; }                                                  // CSS animations, transitions, Web Animations
+  if (SMIL && Math.abs(document.querySelector("svg").getCurrentTime() - tt) > 1e-3) console.error(`vector: SMIL did not move to ${tt} s (it is at ${document.querySelector("svg").getCurrentTime()})`);
+} };
+</script>
+</body>
+</html>

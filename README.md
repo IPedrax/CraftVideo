@@ -39,7 +39,7 @@ Built for **Claude Code**. Developed and tested on Linux with an NVIDIA GPU (see
 | Verify | transcribe the take and list every script line that came back different (a dropped, added or swapped word) | [`verify_narration.py`](skills/craft-video/scripts/verify_narration.py) |
 | Tighten | land on an exact length, find every sentence start, write the cues (when the voice runs sentences together, [`split_narration.py`](skills/craft-video/scripts/split_narration.py) finds the boundaries from word times first) | [`tighten_voice.py`](skills/craft-video/scripts/tighten_voice.py) |
 | Anchor | name the words a scene must land on (a count-up that ends on "45%", a reveal on "padlock"); `timeline.json` gains `moments`, so a new voice re-times everything | [`anchors.py`](skills/craft-video/scripts/anchors.py) |
-| Scenes | scripted picture timed to the cues, any render provider, exact size, fps and frame count. The `html` provider also takes `--look` (nine art directions as data), `--workers` (parallel capture, identical frames), `--shutter` and `--grain`, refuses a scene that depends on history before encoding, and `--lint 1` audits the layout (text cut off, overlapping, hidden, too small, in the caption band, low contrast) | [`render.sh`](skills/craft-video/scripts/render.sh), [`looks/`](skills/craft-video/looks/README.md) |
+| Scenes | scripted picture timed to the cues, any render provider, exact size, fps and frame count. The `html` provider also takes `--look` (ten art directions as data), `--workers` (parallel capture, identical frames), `--shutter` and `--grain`, refuses a scene that depends on history before encoding, and `--lint 1` audits the layout (text cut off, overlapping, hidden, too small, in the caption band, low contrast) | [`render.sh`](skills/craft-video/scripts/render.sh), [`looks/`](skills/craft-video/looks/README.md) |
 | Review | contact sheet of stills for every scene and mid-transition, before the full render, then a scored critic pass (hook, hierarchy, readable, alive, sound, truth) | `render.sh --stills`, [`visual-craft.md`](skills/craft-video/reference/visual-craft.md) |
 | Score | generated music that follows the scene cuts and ducks under the voice | [`synth_music.py`](skills/craft-video/scripts/synth_music.py) |
 | Mix | picture + voice + music to one mp4 at the target loudness, optional editor timeline | [`assemble.sh`](skills/craft-video/scripts/assemble.sh) |
@@ -109,6 +109,8 @@ Choice order: `--provider`, `CRAFTVIDEO_TTS` / `_RENDER` / `_ASSEMBLE` / `_TRANS
 - **Shows its work.** `edit.json` is the edit; `review.md` lists the words removed at every cut; `cuts.jpg` shows the frames either side.
 - **Lays 3D and motion graphics over anything.** Three.js, WebGPU, GSAP and CSS scenes render to frames or to transparent ProRes overlays that composite onto the footage under the captions.
 - **Puts a hand-painted mascot on a video where it fits.** Clawd, the Claude Code mascot, walks on, reacts to the words you name with acted faces, and walks off: a transparent overlay with a review sheet first, laid over a made video or an edit (`reference/mascot.md` says when a mascot fits and when it does not).
+- **Animates vectors as pure functions of time.** An SVG scene sets every attribute from t (a line that draws itself, springs, a morph between any two outlines, a packet on a path, squash and stretch), so it is exact and can render in parallel; any animated SVG (SMIL, CSS, Web Animations) can be played as a video or a transparent overlay (`vector.sh`).
+- **Makes pixel art that stays pixel art.** A scene is drawn at a small size and shown at an even integer scale with a fixed palette, whole-pixel positions and stepped time; footage or an image becomes pixel art with `pixelate.py` (ordered dither, one palette for the whole clip); `qa_pixels.py` proves the blocks are one colour. Every rule was measured: an odd scale loses half the pixels to 4:2:0 chroma, and ffmpeg's default dither changes a third of them every frame.
 - **Cuts shorts out of a long recording.** A transcript-first shortlist with the signals shown, a rubric for the choice, a check that refuses a clip that starts mid-sentence, then one vertical edit per clip with kinetic captions. The script never decides what is worth posting; it lists candidates, and a clip's title must say what the clip says.
 - **Keeps the speaker in frame at 9:16.** The crop window follows the face instead of sitting in the middle, eases in and out, jumps at scene cuts instead of panning across them, and a slide or screen recording is shown whole over a blurred copy.
 - **Hands off to a real editor.** FilmCraft can write a made video's timeline as OpenTimelineIO, FCPXML, FCP7 XML, EDL, AAF or OMF; an edit can be written as OTIO or EDL.
@@ -175,6 +177,10 @@ Status is honest. **Proven**: made and measured in this repo's tests. **Built in
 | Your brand: palette and fonts | Built in | brand file for EffectCraft, CSS for HTML |
 | Photos, screenshots, screen recordings in the picture | Possible | both renderers can; no helper yet |
 | Transparent overlays (ProRes 4444) | Proven | `render.sh --alpha 1` with the `html` provider; real alpha measured |
+| Vector animation: an SVG scene written for `seek(t)` (draw-on, springs, morphs, a path follower, squash and stretch) | Proven | `examples/vector-svg/`: 0 lint errors, byte-exact between visits |
+| An animated SVG file as a video or an overlay | Proven | `vector.sh`: SMIL is byte-exact, CSS animations differ by a sub-pixel between visits (49 dB) so that preflight is tolerant; Lottie is Possible (lottie-web is not shipped) |
+| Pixel art: a scene with sprites, a palette, stepped time, crisp text | Proven | `examples/pixel-art/`: 99.95% of the 6 x 6 blocks one colour, 100% of them in the palette |
+| Footage or an image turned into pixel art | Proven | `pixelate.py` with a named palette or `auto:16`, Bayer dither; the output passes `qa_pixels.py` (100% on a busy test pattern, 99.9% on real clips); small text does not survive 320x180 |
 | Lottie, GIF or EXR sequences | Possible | EffectCraft export formats, not wired |
 | Burned-in captions or SRT for a made video | Possible | captions for **edited recordings** are Proven (below); a made video's script could feed the same builder, not wired |
 
@@ -244,6 +250,7 @@ Built and tested against a real 30-second video, then generalised:
   speaker in the middle, kinetic captions, -14.0 LUFS and every `qa_edit.py` gate passing; the face analysis took 3.5 s and each render 11 to 17 s on the CPU. The work found three faults: a spring that only looks backward made the frame trail a moving face by about 0.9 s (now run forward and backward),
   a thumbnail difference missed real cuts whose size was below the noise of a moving speaker (now ffmpeg's scene score plus face jumps), and a clip cut on its last word failed the caption gate because the last cue was held for 0.6 s past the end of the video (it now ends with it).
   On a made-up talk the shortlist never offered the sponsor read or the call to action, and it also offered four windows of pure filler: the script cannot tell a window is empty, so the picks are read by a person or Claude.
+- **Vector and pixel art, measured.** The research said what to build; the tests found what the sources did not. x264 4:2:0 keeps every pixel block at an even scale (2, 4, 6, 8) and loses half of them at S=3 and S=5, and nearly all 1-pixel detail at S=1; ffmpeg's default dither (`sierra2_4a`) changed 47% of the pixels of real footage every frame, Bayer 14.5% like no dither at all; `paletteuse` wants a palette image of exactly 256 pixels; `crop` rounded an odd 135-pixel height down to 134 on yuv420p and quietly lost the integer upscale (found by the conformance test); and an SVG scene failed the renderer's own determinism check until Chromium's partial raster was switched off (33 pixels, up to 69 levels, on a circle's edge). CSS animations on a transform still differ by a sub-pixel between visits (49 dB); SMIL does not.
 - **Not yet tested:** a second video made from scratch by a fresh agent following only `SKILL.md`; a `--workers` render on a real GPU; the lint on the one scene that needs WebGPU; importing the interchange files into other editors; vertical and square formats for made videos; long recordings; a real img2threejs reconstruction.
 
 ---
@@ -284,6 +291,7 @@ The skill needs one usable provider per stage; `scripts/preflight.sh` reports wh
 | an HTML picture | Node, Playwright and a Chromium (`PLAYWRIGHT_DIR`, `CRAFTVIDEO_CHROMIUM`); a full system Chromium is preferred (the bundled headless shell has no WebGPU) |
 | 3D scenes | three.js (`scripts/get_three.sh <path>` copies it; `CRAFTVIDEO_ALLOW_DOWNLOAD=1` fetches it); `bun` or `esbuild` to bundle TypeScript models; a Vulkan or EGL GPU is optional (`--gpu auto`) |
 | the mascot | the `html` provider and `scripts/get_mascot.sh` (`CRAFTVIDEO_ALLOW_DOWNLOAD=1` fetches the pinned [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase), p5.js and p5.brush; or pass a checkout that has had `npm install`); no GPU needed |
+| vector and pixel art | the `html` provider; Pillow for `pixelate.py` and the example's `make_sprites.py`; Node for the pixel helper's self-test. Nothing is downloaded: fonts, palettes (three ship) and Lottie are optional (`reference/pixel-art.md`, `reference/vector-animation.md`) |
 | the face-following crop | `scripts/get_face.sh` with `CRAFTVIDEO_ALLOW_DOWNLOAD=1`: OpenCV 4.13 (`opencv-python-headless`, Apache-2.0, about 55 MB from PyPI) in its own venv and the 232 KB YuNet model (MIT, from opencv_zoo), both pinned by SHA-256; needs `uv`, `curl` and a python3 with numpy. Only `face_track.py analyze` uses it, no GPU |
 | clips from a long recording | the editing and transcription rows above; `find_clips.py` itself needs only python3 (numpy and ffmpeg for `--audio`) |
 | img2threejs models | a checkout of [img2threejs](https://github.com/img2threejs/img2threejs) (`IMG2THREEJS_HOME`) |
@@ -302,6 +310,7 @@ Describe the video:
 - *"make it vertical"* · *"re-roll the third scene as deadpan"* · *"use my voice sample, here is the clip and what it says"*
 - *"build it with the HTML renderer and the ffmpeg mixer"* · *"give me the timeline as OTIO for Resolve"*
 - *"edit this recording: cut the dead air and ums, clean up the audio, add captions"* · *"make a vertical version with burned-in captions"*
+- *"make it pixel art"* · *"an 8-bit style intro with a sprite walking in"* · *"animate this SVG over the footage"*
 - *"cut the best three clips out of this podcast for Reels"* · *"make this landscape talk vertical and keep me in frame"*
 - *"add a 3D intro"* · *"put a lower third over this clip"* · *"turn this product photo into a 3D model and spin it in the video"*
 
@@ -335,14 +344,17 @@ skills/craft-video/
 │   ├── tighten_voice.py  split_narration.py  verify_narration.py  anchors.py  synth_music.py  finish.sh  qa_sync.py  qa_frames.py
 │   ├── find_retakes.py  check_looks.py
 │   ├── find_clips.py  face_track.py  get_face.sh  the long-to-short tools (shortlist and checks; the face-following crop and its installer)
+│   ├── pixelate.py  qa_pixels.py  vector.sh      pixel art from footage, the pixel-exact gate, an animated SVG as video
 │   ├── mascot.sh  mascot.py  get_mascot.sh       the mascot overlay
 │   └── build.sh  stills.sh  voicestudio-backend  (EffectCraft and VoiceStudio helpers)
-├── looks/                       nine looks (colour, type, motion, sound roles as JSON) and their README
+├── looks/                       ten looks (colour, type, motion, sound roles as JSON; a pixel block for the pixel-art one) and their README
 ├── jsx/                         EffectCraft helper library + the default brand
+├── pixel/                       cvpixel.js (screen, held time, Aseprite sheets, hit-stop, shake, dither, palette cycling), palettes.json, a self-test
+├── vector/                      player.html: plays an animated SVG by the frame's time
 ├── mascot/                      Clawd's overlay page (the kit itself is installed by get_mascot.sh, not stored here)
-├── reference/                   providers.md, edit.md, clips.md, motion-graphics.md, mascot.md, visual-craft.md, short-form.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
+├── reference/                   providers.md, edit.md, clips.md, motion-graphics.md, vector-animation.md, pixel-art.md, mascot.md, visual-craft.md, short-form.md, storyboard.md, html-scenes.md, effectcraft-scripting.md
 ├── fixtures/                    tiny inputs for the conformance tests (script, real speech, synthetic footage and its ground-truth check)
-└── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird, looks-demo, continuous-camera, mascot, clips
+└── examples/                    decomp-30s, html-hello, html-css-animation, three-3d, img2threejs-bridge, webgpu-shader, gsap-timeline, overlay-lowerthird, looks-demo, continuous-camera, mascot, clips, vector-svg, pixel-art
 ```
 
 ---
@@ -377,6 +389,8 @@ style notes became the colour and type data in `looks/`) and the HyperFrames stu
 (PolyForm Noncommercial), [Hypit](https://github.com/hypit-ai/hypit) (source-available, commercial use restricted) and [SupoClip](https://github.com/FujiwaraChoki/supoclip) (AGPL-3.0: a transcript-first clip shortlist with a rubric for the choice,
 and a face-following crop with a deadzone and a spring, the ideas behind `find_clips.py` and `face_track.py`) were read for ideas only. None of their code, prompts or prose is in this repository: each tool here is our own
 implementation and its header or reference says where the idea came from. SupoClip asks a language model to pick the clips and downloads from YouTube; `find_clips.py` does neither. The videos analysed are not included.
+
+**Studied, not copied (round 5).** The pixel-art rules and numbers come from reading Slynyrd's Pixelblog, Saint11's articles, Derek Yu's tutorial, Mark Ferrari's colour-cycling write-up, TASVideos' encoding guide, YouTube's upload guidance and ffmpeg's palette filters; the vector rules from NN/g, Material 3, Apple's spring documentation, MDN and Blink's SMIL source; the idea of seeking SMIL, CSS and Lottie by a frame's time from HyperFrames (Apache-2.0) and Remotion's docs. The Aseprite sprite sheet is read with our own code from the fields its exporter documents (Aseprite is source-available under an EULA; none of it is bundled), the PICO-8 palette is CC0 per Lexaloffle, and every sprite, scene and animated SVG here is original. Sources are listed in `reference/pixel-art.md` and `reference/vector-animation.md`.
 
 **Installed, not included.** The mascot is [ClaudeAnimationBase](https://github.com/JohnHeibel/ClaudeAnimationBase) by John Heibel (MIT): Clawd and its painting engine, fetched by `scripts/get_mascot.sh` at a pinned commit with every file checked against its
 SHA-256, together with p5.js (LGPL-2.1) and p5.brush (MIT) from npm. None of it is stored in this repository, only our page (`skills/craft-video/mascot/clawd.html`) and the tools around it. Clawd is a character of Anthropic: it is for videos about

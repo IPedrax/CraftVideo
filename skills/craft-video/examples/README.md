@@ -15,6 +15,8 @@ Each folder renders with the commands shown (`S` is `skills/craft-video/scripts`
 | `looks-demo/` | one scene styled only by the variables a look injects (`--look NAME`): the same frame in nine art directions | the `html` provider |
 | `mascot/` | Clawd, the Claude Code mascot, walking on, reacting to named words with acted faces and walking off: a cue file against `moments`, rendered as a transparent overlay and laid over a picture | the mascot kit (`get_mascot.sh`), the `html` provider |
 | `clips/` | long recording to shorts: a made-up talk's transcript, the candidates the script proposes, and the picks a person wrote from them; runs with no recording | python3 (numpy for `--audio`) |
+| `vector-svg/` | a vector scene as pure functions of t (draw-on, spring pops, a morph between any two outlines, a packet on a path, squash and stretch) and `loader.svg` to play with `vector.sh` | the `html` provider |
+| `pixel-art/` | a 16-colour pixel-art scene: a robot from an Aseprite-style sheet, stepped time, hit-stop and shake, palette cycling, crisp text, a Bayer dissolve; `qa_pixels.py` proves it pixel-exact | the `html` provider, Pillow (`make_sprites.py`) |
 | `continuous-camera/` | a one-take video: four beats are stations in one world, one camera travels between them keyed from the cues (log zoom, parallax, a carrier dot and a drawn route instead of a wipe) | the `html` provider |
 
 ## Commands
@@ -39,7 +41,7 @@ bash $S/render.sh overlay-lowerthird/scene.html lowerthird.mov --provider html -
 bash $S/render.sh three-3d/scene.html cart.mov --provider html --timeline three-3d/timeline.json --width 960 --height 540 --fps 30 --duration 3 --alpha 1
 ```
 
-# the same scene in a look (nine in ../looks), then the layout lint under that look
+# the same scene in a look (ten in ../looks), then the layout lint under that look
 bash $S/render.sh looks-demo/scene.html out.mp4 --provider html --width 1920 --height 1080 --fps 30 --duration 4 --look dark-keynote
 bash $S/render.sh looks-demo/scene.html lint.json --provider html --width 1920 --height 1080 --duration 4 --look dark-keynote --lint 1
 

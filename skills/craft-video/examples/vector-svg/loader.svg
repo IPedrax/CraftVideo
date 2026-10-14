@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- An animated SVG written for this suite (MIT): the three kinds of clock an asset can carry. SMIL turns the ring and grows the dots, a CSS animation pulses the core,
+       and a Web Animation would be handled the same way. vector.sh moves all of them by the frame's time. -->
+  <style>
+    .core { transform-box: fill-box; transform-origin: center; animation: pulse 1.2s ease-in-out infinite; fill: #ff2e88; }
+    @keyframes pulse { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.15); } }
+    .dot { fill: #3ad7ff; }
+  </style>
+  <rect width="200" height="200" fill="#0a0a0b"/>
+  <g transform="translate(100 100)">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="2s" repeatCount="indefinite"/>
+      <circle class="dot" cx="0" cy="-62" r="9"><animate attributeName="r" values="4;11;4" dur="2s" repeatCount="indefinite"/></circle>
+      <circle class="dot" cx="54" cy="31" r="9"><animate attributeName="r" values="4;11;4" dur="2s" begin="0.66s" repeatCount="indefinite"/></circle>
+      <circle class="dot" cx="-54" cy="31" r="9"><animate attributeName="r" values="4;11;4" dur="2s" begin="1.33s" repeatCount="indefinite"/></circle>
+    </g>
+    <circle class="core" r="22"/>
+  </g>
+</svg>

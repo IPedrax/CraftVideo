@@ -1,0 +1,20 @@
+{
+  "pico8": {
+    "name": "PICO-8 (16 colours)",
+    "source": "https://www.lexaloffle.com/pico-8.php",
+    "terms": "CC0, as Lexaloffle's FAQ (https://www.lexaloffle.com/pico-8.php?page=faq) states for the palette",
+    "colors": ["000000", "1D2B53", "7E2553", "008751", "AB5236", "5F574F", "C2C3C7", "FFF1E8", "FF004D", "FFA300", "FFEC27", "00E436", "29ADFF", "83769C", "FF77A8", "FFCCAA"]
+  },
+  "cga16": {
+    "name": "CGA / EGA text palette (16 colours)",
+    "source": "https://en.wikipedia.org/wiki/Enhanced_Graphics_Adapter",
+    "terms": "the fixed digital levels of the hardware (0, 55 and AA of each primary, with brown for dark yellow); no author",
+    "colors": ["000000", "0000AA", "00AA00", "00AAAA", "AA0000", "AA00AA", "AA5500", "AAAAAA", "555555", "5555FF", "55FF55", "55FFFF", "FF5555", "FF55FF", "FFFF55", "FFFFFF"]
+  },
+  "gameboy": {
+    "name": "Game Boy (4 greens)",
+    "source": "https://lospec.com/palette-list (several four-green ramps circulate; this is the common 0F380F to 9BBC0F one)",
+    "terms": "no author or terms known: four numbers that describe a hardware look. Load another ramp from a .hex file if you want a specific one",
+    "colors": ["0F380F", "306230", "8BAC0F", "9BBC0F"]
+  }
+}

@@ -57,7 +57,10 @@ async function launchOnce(pw, gpu) {
   const exe = process.env.CRAFTVIDEO_CHROMIUM;
   // WebGPU is on in every mode (software through SwiftShader when there is no GPU path). The private origin is local and ours, so treat it as
   // secure: that is what exposes navigator.gpu and other secure-context APIs.
-  const flags = ["--force-device-scale-factor=1", "--hide-scrollbars", "--font-render-hinting=none", "--enable-unsafe-webgpu", "--unsafely-treat-insecure-origin-as-secure=http://cv.local", ...GPU_FLAGS[gpu]];
+  // --disable-partial-raster: Chromium otherwise re-rasterises only the invalidated part of a tile, and a path (an SVG curve, a rounded box, a circle) can come out a
+  // few anti-aliasing levels different from a full raster of the same DOM, so a frame depended on what was shown before it (measured: an SVG scene failed its own preflight,
+  // 33 pixels up to 69 levels apart on a circle's edge; with the flag every revisit is byte-identical)
+  const flags = ["--force-device-scale-factor=1", "--hide-scrollbars", "--font-render-hinting=none", "--disable-partial-raster", "--enable-unsafe-webgpu", "--unsafely-treat-insecure-origin-as-secure=http://cv.local", ...GPU_FLAGS[gpu]];
   // a full system Chromium first: Playwright's bundled headless shell has no WebGPU and no proprietary codecs. The bundled one is the last resort.
   const tries = [exe && { executablePath: exe }, { executablePath: "/usr/bin/chromium" }, { executablePath: "/usr/bin/google-chrome-stable" }, {}].filter(Boolean);
   let last;
@@ -192,7 +195,8 @@ const sceneAbs = resolve(scene), root = resolve(o.root || dirname(sceneAbs)), OR
 const THREE = [process.env.THREE_DIR, join(process.env.HOME || "", ".local/share/craftvideo/three"), join(root, "node_modules/three"), join(process.cwd(), "node_modules/three")]
   .find((d) => d && existsSync(join(d, "build/three.module.js")));
 const MASCOT = [process.env.MASCOT_DIR, join(process.env.HOME || "", ".local/share/craftvideo/mascot")].find((d) => d && existsSync(join(d, "clawd/clawd.js")));   // scripts/get_mascot.sh
-const MOUNTS = { "/__cv/three/": [THREE, "three.js", "get_three.sh"], "/__cv/mascot/": [MASCOT, "the mascot kit", "get_mascot.sh"] };   // folders outside the scene's, served under a fixed path
+const PIXEL = join(dirname(fileURLToPath(import.meta.url)), "../../../pixel");      // cvpixel.js and palettes.json: the skill's own helpers for pixel-art scenes (reference/pixel-art.md)
+const MOUNTS = { "/__cv/three/": [THREE, "three.js", "get_three.sh"], "/__cv/mascot/": [MASCOT, "the mascot kit", "get_mascot.sh"], "/__cv/pixel/": [PIXEL, "the pixel helpers", "(part of the skill)"] };   // folders outside the scene's, served under a fixed path
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".json": "application/json", ".css": "text/css", ".svg": "image/svg+xml",
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".avif": "image/avif", ".woff2": "font/woff2",
   ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf", ".glb": "model/gltf-binary", ".gltf": "model/gltf+json", ".wasm": "application/wasm",

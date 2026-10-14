@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pixel walk</title>
+<style>html, body { margin: 0; background: #000; overflow: hidden; }</style>
+</head>
+<body>
+<script type="module">
+// A 16-colour pixel-art scene, every part of it a pure function of t: a dithered sky, a robot read from an Aseprite-style sprite sheet (idle, walk, hurt),
+// stepped time (the world moves 8, 6 and 3 times a second, not 24), whole-pixel positions, a hit-stop and a decaying screen shake on a cue, a palette-cycled water strip,
+// crisp 1-bit text and a Bayer dissolve at the end. Render it at 24 fps (every rate above divides 24, so each drawing is held for a whole number of frames; at 30 fps use 10, 15 or 6):
+//   --width 1920 --height 1080 --fps 24  (a 320 x 180 picture at scale 6)   or   --width 1080 --height 1920 --fps 24  (180 x 320).
+// First run:  python3 make_sprites.py   (writes sheet.png and sheet.json next to this file; use your own Aseprite export in their place).
+import { screen, tick, hitstop, palette, loadSheet, frameAt, drawFrame, shake, ditherV, ditherFade, paintIndexed } from "/__cv/pixel/cvpixel.js";
+
+const spec = window.__CV_SPEC, DUR = spec.duration || 8, HIT = spec.timeline?.moments?.hit?.start ?? 5.0;     // a word in the narration can be the hit: anchors.py writes moments
+let S, P, sheet, water, stars;
+
+async function init() {
+  S = screen(spec); P = await palette(spec.look?.pixel?.palette || "pico8"); sheet = await loadSheet("sheet.json");      // the look, when there is one, names the scale and the palette
+  const { w, h } = S, wh = 28;                                                   // the water: palette indices, drawn once, animated by cycling the colours (28 rows: the shake can lift it 4)
+  water = new Uint8Array(w * wh); for (let y = 0; y < wh; y++) for (let x = 0; x < w; x++) water[y * w + x] = ((y >> 1) + 2 * ((x >> 4) & 1)) % 4;
+  stars = Array.from({ length: Math.round(w * h / 700) }, (_, i) => { const r = (n) => (Math.imul(i + 1, n) >>> 0) % 1000 / 1000; return { x: Math.floor(r(2654435761) * w), y: Math.floor(r(40503) * h * 0.4), ph: i % 3 }; });
+}
+let ready; const once = () => (ready ||= init());
+
+function draw(t) {
+  const { g, w, h } = S, tw = hitstop(t, HIT, 0.2);                                    // the world's time stops for 0.2 s on the hit (fighting games hold 9 to 14 frames at 60 fps)
+  const u = (t - HIT) / 0.5, amp = t >= HIT && u < 1 ? Math.ceil(3 * (1 - u) ** 2) : 0, [sx, sy] = amp ? shake(t, amp, 24) : [0, 0];     // a shake that dies away: 3 pixels, then 2, then 1
+  g.save(); g.translate(sx, sy);
+  ditherV(g, -4, -4, w + 8, h + 8, [P[1], P[2], P[8], P[9]]);                        // sky: four colours, ordered dither between neighbours
+  for (const s of stars) if ((tick(tw, 3) * 3 + s.ph) % 3 !== 0) S.px(s.x, s.y, P[7]);   // twinkle at 3 fps
+  const cs = Math.floor(tick(tw, 6) * 6);                                           // clouds step once every 1/6 s, one pixel each
+  [[40, 30, 36], [190, 18, 28], [270, 44, 40]].forEach(([x, y, cw]) => { const cx = ((x - cs + 400) % (w + 80)) - 40; S.rect(cx, y, cw, 4, P[14]); S.rect(cx + 6, y - 3, cw - 14, 3, P[14]); S.rect(cx + 3, y + 4, cw - 8, 2, P[2]); });
+  const gy = h - 44;                                                                 // ground, then the cycling water
+  S.rect(-4, gy, w + 8, h - gy + 4, P[3]); S.rect(-4, gy, w + 8, 2, P[11]); for (let x = (gy & 1); x < w; x += 4) S.px(x, gy + 5, P[11]);
+  paintIndexed(g, water, w, 28, [P[1], P[13], P[12], P[13]], [{ from: 0, to: 3, rate: 4 }], t, 0, h - 24);
+  // the robot: idle, then walks right 3 pixels per animation frame, is hit, then walks back
+  const x0 = 24, WALK0 = 1.5, SPEED = 3, step = (a, b) => SPEED * Math.floor(tick(b - a, 8) * 8 + 1e-9);
+  const xHit = x0 + step(WALK0, HIT), back = t - HIT - 0.3;
+  let x, tag, tt = 0, flip = false;
+  if (t < WALK0) { x = x0; tag = "idle"; tt = t; }
+  else if (t < HIT) { x = x0 + step(WALK0, t); tag = "walk"; tt = t - WALK0; }
+  else if (t < HIT + 0.3) { x = xHit; tag = "hurt"; tt = t - HIT; }
+  else { x = Math.max(8, xHit - step(0, back)); tag = "walk"; tt = back; flip = true; }
+  drawFrame(g, sheet, frameAt(sheet, tag, tt), x, gy - 13, { flip });
+  g.restore();
+  // text: typed at 14 characters a second, a cursor blinking twice a second; thresholded so every letter is whole pixels
+  const title = "PIXEL WALK", typed = title.slice(0, Math.max(0, Math.floor((t - 0.3) * 14))), cur = Math.floor(t * 2) % 2 === 0 ? "_" : " ";
+  S.text(typed + (typed.length < title.length || t < DUR - 1.5 ? cur : ""), 10, 8, P[7], 'bold 16px "DejaVu Sans Mono", monospace');
+  if (t > 2) S.text("8 FPS WALK  WHOLE PIXELS  16 COLOURS", 10, 28, P[10], 'bold 8px "DejaVu Sans Mono", monospace');
+  if (t >= HIT && t < HIT + 0.5) S.text("HIT!", Math.round(x + 18), gy - 28, P[10], 'bold 8px "DejaVu Sans Mono", monospace');
+  ditherFade(g, w, h, (t - (DUR - 1.2)) / 1.0, P[0]);                               // dissolve to black over the last 1.2 s
+}
+
+window.craftvideo = { async seek(t) { await once(); S.clear(P[0]); draw(t); } };
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "id": "pixel-art",
+  "name": "Pixel art: a 16-colour palette, whole pixels, stepped time",
+  "for": "games, retro and 8-bit topics, developer humour, anything that should read as a screen from 1990; a scene drawn at a small size and shown at an integer scale, or footage turned into pixel art with pixelate.py",
+  "color": { "ground": "#1D2B53", "surface": "#000000", "ink": "#FFF1E8", "muted": "#C2C3C7", "accent": "#FF004D", "signal": "#FFEC27" },
+  "pixel": { "scale": 6, "palette": "pico8", "fps": 12, "dither": "bayer" },
+  "type": {
+    "display": { "family": "Press Start 2P", "fallback": "DejaVu Sans Mono, monospace", "weight": 700, "size": 0.089 },
+    "text":    { "family": "Press Start 2P", "fallback": "DejaVu Sans Mono, monospace", "weight": 700, "size": 0.044 },
+    "label":   { "family": "Press Start 2P", "fallback": "DejaVu Sans Mono, monospace", "weight": 700, "size": 0.044, "caps": true }
+  },
+  "motion": { "ease": "none: positions are whole logical pixels and time is held on whole animation frames (on twos or threes); no easing curves, no motion blur", "note": "on twos: 12 drawings a second in a 24 fps video (or 8 on threes, 6 on fours; at 30 fps use 15, 10 or 6). A walk is 6 to 8 frames at 80 to 125 ms; a hit freezes the world for 0.15 to 0.25 s (fighting games hold 9 to 14 frames at 60 fps), then shakes by 2 to 4 pixels with a fast decay" },
+  "camera": "cuts, and pans in whole pixels; a shake is a few pixels for a few frames",
+  "texture": { "grain": 0, "note": "no grain, no gradients, no blur: ordered (Bayer) dither where a gradient is wanted, never error diffusion" },
+  "caption": { "style": "plain", "font": "DejaVu Sans Mono", "y": 0.86 },
+  "avoid": ["smooth easing", "motion blur", "rotating or scaling a finished sprite", "gradients and anti-aliasing", "an odd scale", "error-diffusion dithering", "more colours than the palette"],
+  "sound": { "mood": "chiptune: square and triangle waves, a noise snare, short arpeggios", "bpm": [110, 140], "duck_db": 8 },
+  "source": "ours. The palette is PICO-8's sixteen colours; the sizes are multiples of one logical pixel at scale 6 (8 px = 0.044 of the height, 16 px = 0.089)"
+}

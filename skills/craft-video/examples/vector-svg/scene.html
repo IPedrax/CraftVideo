@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vector motion</title>
+<style>
+  html, body { margin: 0; height: 100%; background: var(--cv-ground, #0a0a0b); overflow: hidden; }
+  svg { display: block; width: 100vw; height: 100vh; }
+  .ink { fill: var(--cv-ink, #f2f2f0); } .accent { fill: var(--cv-accent, #ff2e88); } .signal { fill: var(--cv-signal, #3ad7ff); }
+  .line { fill: none; stroke: var(--cv-ink, #f2f2f0); stroke-linecap: round; stroke-linejoin: round; }
+  .muted { stroke: var(--cv-muted, #8a8a90); }
+  text { font-family: var(--cv-label-font, "IBM Plex Mono", monospace); color: var(--cv-ink, #f2f2f0); fill: currentColor; }      /* the lint reads colour, SVG paints fill */
+</style>
+</head>
+<body>
+<svg id="s" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <g id="axes" class="line muted" stroke-width="4"><path id="axX" d="M160 900 H1160" pathLength="1"/><path id="axY" d="M160 900 V180" pathLength="1"/></g>
+  <path id="curve" class="line" style="stroke: var(--cv-accent, #ff2e88)" stroke-width="10" pathLength="1"/>
+  <g id="markers"></g>
+  <path id="packet" class="signal" d="M-16 -14 L18 0 L-16 14 Z"/>
+  <g transform="translate(1520 380)"><path id="shape" style="fill: var(--cv-signal, #3ad7ff)"/></g>
+  <g id="ballG"><ellipse id="shadow" cx="1520" cy="985" rx="60" ry="9" fill="#000" opacity=".35"/><ellipse id="ball" class="accent" rx="38" ry="38"/></g>
+  <text id="cap" x="160" y="118" font-size="46" letter-spacing="2"></text>
+</svg>
+<script>
+// Vector animation as pure functions of t: stroke draw-on (stroke-dashoffset on a pathLength 1 path), springs, a morph between any two closed paths (equal arc-length
+// samples), a packet that rides a path (getPointAtLength), and squash and stretch with the volume kept. Colours come from the look when one is given (--look NAME).
+const $ = (id) => document.getElementById(id), NS = "http://www.w3.org/2000/svg", clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)), lerp = (a, b, k) => a + (b - a) * k;
+const ease = { glide: (t) => 1 - Math.pow(1 - t, 1.7), soft: (t) => (1 - Math.exp(-3.41 * t)) / (1 - Math.exp(-3.41)) };
+const spring = (t, zeta = 0.42, omega = 17) => { if (t <= 0) return 0; const wd = omega * Math.sqrt(1 - zeta * zeta); return 1 - Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + (zeta * omega / wd) * Math.sin(wd * t)); };
+const seg = (t, a, b) => clamp((t - a) / (b - a));                                       // 0 before a, 1 after b
+
+// the chart: a smooth curve through six points, one cubic per interval (Catmull-Rom), measured once so each marker knows when the line reaches it
+const PTS = [[160, 820], [330, 640], [520, 700], [720, 430], [930, 520], [1150, 240]];
+const cubic = (i) => { const p = (k) => PTS[clamp(k, 0, PTS.length - 1)], a = p(i - 1), b = p(i), c = p(i + 1), d = p(i + 2);
+  return `C${b[0] + (c[0] - a[0]) / 6} ${b[1] + (c[1] - a[1]) / 6} ${c[0] - (d[0] - b[0]) / 6} ${c[1] - (d[1] - b[1]) / 6} ${c[0]} ${c[1]}`; };
+const D = "M" + PTS[0].join(" ") + PTS.slice(0, -1).map((_, i) => cubic(i)).join(" ");
+$("curve").setAttribute("d", D);
+const total = $("curve").getTotalLength(), at = [0];
+for (let i = 1; i < PTS.length; i++) { const q = document.createElementNS(NS, "path"); q.setAttribute("d", "M" + PTS[0].join(" ") + PTS.slice(0, i).map((_, k) => cubic(k)).join(" ")); at.push(q.getTotalLength() / total); }
+for (const [x, y] of PTS) { const c = document.createElementNS(NS, "circle"); c.setAttribute("r", 17); c.classList.add("ink"); c.dataset.x = x; c.dataset.y = y; $("markers").appendChild(c); }
+$("curve").style.strokeDasharray = "1 1.001";
+
+// morph: sample both closed paths at N equal arc-length steps, rotate B's start to the nearest alignment, blend point by point
+const N = 120, sample = (d) => { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); const L = p.getTotalLength();
+  const P = Array.from({ length: N }, (_, i) => { const q = p.getPointAtLength(L * i / N); return [q.x, q.y]; });
+  const area = P.reduce((s, a, i) => { const b = P[(i + 1) % N]; return s + a[0] * b[1] - b[0] * a[1]; }, 0);
+  return area < 0 ? P.reverse() : P; };                                              // every outline runs the same way round, or the morph twists
+const align = (A, B) => { let best = 0, bd = Infinity; for (let s = 0; s < N; s++) { let e = 0; for (let i = 0; i < N; i += 4) { const a = A[i], b = B[(i + s) % N]; e += (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2; } if (e < bd) { bd = e; best = s; } } return B.map((_, i) => B[(i + best) % N]); };
+const star = (R, r) => "M" + Array.from({ length: 10 }, (_, i) => { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r : R; return `${(rr * Math.cos(a)).toFixed(2)} ${(rr * Math.sin(a)).toFixed(2)}`; }).join(" L") + " Z";
+const SHAPES = [`M-150 0 A150 150 0 1 0 150 0 A150 150 0 1 0 -150 0 Z`, `M-120 -150 H120 Q150 -150 150 -120 V120 Q150 150 120 150 H-120 Q-150 150 -150 120 V-120 Q-150 -150 -120 -150 Z`, star(190, 80)];
+const SM = [sample(SHAPES[0])]; for (const d of [SHAPES[1], SHAPES[2], SHAPES[0]]) SM.push(align(SM[SM.length - 1], sample(d)));      // circle, square, star, circle: each aligned to the one before it
+const poly = (P) => "M" + P.map((p) => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L") + " Z";
+
+// the ball: a fall from 330 px, then bounces of 0.62 the speed; its volume is kept (scale x = 1 / scale y)
+const H0 = 330, T0 = 0.52, E = 0.62, B0 = 2.0, R = 38;                                  // a ball of radius R that touches the line y = 985
+const heightAt = (t) => { let tau = t - B0; if (tau < 0) return H0; if (tau < T0) return H0 * (1 - (tau / T0) ** 2); tau -= T0;
+  for (let k = 1; k < 8; k++) { const T = T0 * Math.pow(E, k), H = H0 * Math.pow(E, 2 * k); if (tau < 2 * T) return H * (1 - ((tau - T) / T) ** 2); tau -= 2 * T; } return 0; };
+const contacts = (() => { const c = [B0 + T0]; let t = B0 + T0; for (let k = 1; k < 8; k++) { t += 2 * T0 * Math.pow(E, k); c.push(t); } return c; })();
+
+window.craftvideo = { seek(t) {
+  // 1. axes draw on, then the curve
+  $("axX").style.strokeDasharray = $("axY").style.strokeDasharray = "1 1.001";
+  $("axX").style.strokeDashoffset = 1 - ease.glide(seg(t, 0.2, 0.9)); $("axY").style.strokeDashoffset = 1 - ease.glide(seg(t, 0.3, 1.0));
+  const draw = ease.glide(seg(t, 0.6, 2.6)); $("curve").style.strokeDashoffset = 1 - draw; $("curve").style.opacity = draw > 0 ? 1 : 0;
+  // 2. markers pop with a spring when the line reaches them
+  [...$("markers").children].forEach((c, i) => { const k = spring(t - (0.6 + 2.0 * (1 - Math.pow(1 - at[i], 1 / 1.7)))); c.setAttribute("transform", `translate(${c.dataset.x} ${c.dataset.y}) scale(${Math.max(0, k)})`); });
+  // 3. the packet rides the curve, pointing along it
+  const pr = ease.soft(seg(t, 2.8, 5.6)), L = total * pr, p = $("curve").getPointAtLength(L), q = $("curve").getPointAtLength(Math.min(total, L + 1)), ang = Math.atan2(q.y - p.y, q.x - p.x) * 180 / Math.PI;
+  $("packet").setAttribute("transform", `translate(${p.x} ${p.y}) rotate(${ang})`); $("packet").style.opacity = t > 2.8 && t < 5.8 ? 1 : 0;
+  // 4. the morph: circle to square to star to circle, each over a second with a hold between
+  const m = ease.glide(seg(t, 1.2, 2.2)) + ease.glide(seg(t, 3.4, 4.4)) + ease.glide(seg(t, 5.6, 6.6)), i = Math.min(2, Math.floor(m + 1e-9)), k = m - i;
+  $("shape").setAttribute("d", poly(SM[i].map((a, n) => [lerp(a[0], SM[i + 1][n][0], k), lerp(a[1], SM[i + 1][n][1], k)])));
+  $("shape").setAttribute("transform", `scale(${lerp(0.9, 1, seg(t, 0.4, 1.2))})`);
+  // 5. the ball: squash on contact, stretch in flight (the volume is kept), a shadow that follows the height
+  const h = heightAt(t), prev = heightAt(t - 1 / 240), speed = Math.abs(h - prev) * 240 / (H0 / T0 * 2), near = Math.min(...contacts.map((c) => Math.abs(t - c)));
+  const squash = t > B0 ? clamp(1 - near / 0.07) * 0.3 * Math.min(1, 0.4 + speed) : 0, sy = 1 - squash + 0.18 * speed * (squash ? 0 : 1), sx = 1 / sy;
+  $("ball").setAttribute("transform", `translate(1520 ${985 - h - R * sy}) scale(${sx} ${sy})`);
+  $("shadow").setAttribute("rx", 60 * (1 - 0.4 * clamp(h / H0)) * (1 + squash)); $("shadow").style.opacity = 0.35 * (1 - 0.6 * clamp(h / H0));
+  // 6. a caption that types in, six letters a second slower than the beat
+  const cap = "PURE FUNCTIONS OF T", n = Math.floor(seg(t, 3.0, 5.0) * cap.length); $("cap").textContent = cap.slice(0, n);
+  return document.fonts.ready;
+} };
+</script>
+</body>
+</html>

@@ -88,6 +88,11 @@ All on the `html` provider, all optional, none changes what you get by default (
 | `--preflight-psnr 60` | keeps the preflight but forgives renderer noise: a revisit within 60 dB PSNR of the first visit passes (byte-exact otherwise) | p5.brush frames on the software renderer differ by a level in a pixel or two, about 100 dB apart (the mascot passes this flag); a moved object is 20 to 40 dB |
 | `--lint 1` | no video: audits the layout and writes a JSON report, exit 1 on any error | below |
 
+The renderer starts Chromium with `--disable-partial-raster`, always: Chromium otherwise re-rasterises only the invalidated part of a tile, and a path (an SVG curve, a circle, a rounded box) can come
+out a few anti-aliasing levels different from a full raster of the same DOM, so a frame depended on what had been shown before it. An SVG scene failed its own preflight that way (33 pixels, up to 69 levels, on a
+circle's edge); with the flag every revisit is byte-identical and the speed is the same. It does not cover everything: a CSS or Web Animation on a transform still differs by a sub-pixel between visits
+(`reference/vector-animation.md`), and the mascot's WebGL frames keep their own noise (that is what `--preflight-psnr 60` is for).
+
 ```bash
 bash $S/render.sh work/scene.html work/lint.json --provider html --lint 1 --timeline work/timeline.json --width 1920 --height 1080 [--lint-step 0.5] [--band 0.18] [--min-size 0.025]
 ```

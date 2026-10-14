@@ -13,7 +13,7 @@
       "name": "craftvideo",
       "source": "./",
       "category": "media",
-      "description": "Make (research, storyboard, narrate, animate, score, mix, export) or edit (analyze, transcribe, cut dead air and fillers, clean and level audio, caption, reframe to vertical following the speaker's face, pick and cut shorts from a long recording), with Three.js 3D, img2threejs models, WebGPU shaders, GSAP, a hand-painted mascot and transparent overlays. Voice, picture, mix, transcription and editing are swappable providers (VoiceStudio, EffectCraft, FilmCraft, ffmpeg, faster-whisper, HTML, OpenAI-compatible and command-line tools) with a conformance suite and editor timeline hand-off."
+      "description": "Make (research, storyboard, narrate, animate, score, mix, export) or edit (analyze, transcribe, cut dead air and fillers, clean and level audio, caption, reframe to vertical following the speaker's face, pick and cut shorts from a long recording), with Three.js 3D, img2threejs models, WebGPU shaders, GSAP, vector animation and SVG assets, pixel art, a hand-painted mascot and transparent overlays. Voice, picture, mix, transcription and editing are swappable providers (VoiceStudio, EffectCraft, FilmCraft, ffmpeg, faster-whisper, HTML, OpenAI-compatible and command-line tools) with a conformance suite and editor timeline hand-off."
     }
   ]
 }

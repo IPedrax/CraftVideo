@@ -36,7 +36,7 @@ A phrase that is heard twice, or not at all, stops the script with the times or 
 no scene is edited. (The idea of anchoring to words is Hypit's, source-available, ideas only; this is our own, tested on a hand-made transcript and on The Connected City's real one.)
 
 **Looks.** `--look NAME` (`looks/*.json`, `looks/README.md`) injects the colour and type roles as CSS variables (`var(--cv-ink, #f2f2f0)`, `var(--cv-display-size, 9vh)`) and as `spec.look`, so one scene can
-take nine art directions; `examples/looks-demo/scene.html` is built that way and `scripts/check_looks.py` validates a look.
+take ten art directions; `examples/looks-demo/scene.html` is built that way and `scripts/check_looks.py` validates a look.
 
 ## Rules that make frames correct
 
@@ -49,7 +49,10 @@ take nine art directions; `examples/looks-demo/scene.html` is built that way and
 - **Nothing may depend on wall-clock time.** No `setTimeout`, `requestAnimationFrame` loops, `Date.now()`, or CSS animations left to
   run on their own. Every frame is drawn after one `seek(t)`; whatever the page was doing in between is irrelevant.
 - **CSS animations and transitions are fine if you take them over:** `for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; }`
-  (`examples/html-css-animation/scene.html`, tested: the animations report exactly the time you set).
+  (`examples/html-css-animation/scene.html`, tested: the animations report exactly the time you set). Give every animation `fill: both` or keep the list from the first call: a finished animation
+  with no fill leaves `getAnimations()`, and a later visit to an earlier time would miss it. A CSS animation on a transform can still differ by a sub-pixel between two visits of the same time
+  (measured: 49 dB, `--preflight-psnr 40` accepts it), so for your own scenes set the style in `seek(t)` instead. SMIL in an inline SVG is exact: `svg.pauseAnimations(); svg.setCurrentTime(t)`
+  (`reference/vector-animation.md`, `scripts/vector.sh` plays any animated SVG that way).
 - Individual CSS transform properties (`translate`, `rotate`, `scale`) apply in that order, before `transform`. Mixing `rotate` with a
   `transform: translateX()` slides along the rotated axis: use `translate` for the slide.
 - **Size with `vw`/`vh`**, not px, so the same scene renders at 1920x1080, 1080x1920 or 1080x1080. Re-check each aspect ratio in stills.

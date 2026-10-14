@@ -6,7 +6,8 @@
 # render   a 1 s scene -> render.sh -> silent mp4 of exactly the requested size, fps and frame count; a provider that advertises alpha is
 #          asked for a transparent overlay and the alpha channel is checked; html also renders the three.js example (when three is installed)
 #          and the mascot overlay (when the mascot kit is installed)
-#          and fails if the scene is not deterministic
+#          and fails if the scene is not deterministic; html also renders the vector example scene and an animated SVG (vector.sh), and the pixel-art example
+#          (cvpixel.js's logic, exact scale x scale blocks of palette colours through qa_pixels.py) plus pixelate.py on a test pattern
 # assemble 4 s picture + voice + music -> assemble.sh -> final mp4 with video and audio, same length, loudness near target
 # transcribe  9 s of real speech (fixtures/speech.flac) -> transcribe.sh -> valid word timings in order, inside the audio, and at least
 #          70% of the known words recognised
@@ -93,6 +94,22 @@ PY
     then row render "$n+mascot" PASS "Clawd overlay: real alpha, a small solid character, passes the preflight (to within renderer noise)"
     else row render "$n+mascot" FAIL "$(grep -m1 -E "WARNING|error|404|mascot:" "$T/rm.log" || tail -1 "$T/rm.log")"; fi
   elif [ "$n" = html ]; then row render "$n+mascot" SKIP "mascot kit not installed (scripts/get_mascot.sh)"; fi
+  if [ "$n" = html ]; then      # vector: the example scene must pass the byte-exact preflight, and an animated SVG asset must play (SMIL plus a CSS animation)
+    if bash "$CV_HERE/render.sh" "$CV_SKILL/examples/vector-svg/scene.html" "$T/vec.mp4" --provider html --width 640 --height 360 --fps 12 --duration 2 >"$T/rv.log" 2>&1 \
+       && bash "$CV_HERE/vector.sh" "$CV_SKILL/examples/vector-svg/loader.svg" "$T/loader.mp4" --width 640 --height 360 --fps 12 --duration 2 >>"$T/rv.log" 2>&1 \
+       && ! grep -qE "WARNING|vector:.*(no animation|did not move)" "$T/rv.log"; then row render "$n+vector" PASS "an SVG scene (draw-on, morph, path, spring) is byte-exact between visits; an animated SVG plays through vector.sh"
+    else row render "$n+vector" FAIL "$(grep -m1 -E "WARNING|vector:|error|404|not a pure" "$T/rv.log" || tail -1 "$T/rv.log")"; fi
+    # pixel art: the helper's logic, the example scene at scale 6 must be exact blocks of palette colours, and pixelate.py must turn footage into the same
+    local P="$T/pixel"; mkdir -p "$P"; cp "$CV_SKILL/examples/pixel-art/scene.html" "$P/"; "$CV_PY" "$CV_SKILL/examples/pixel-art/make_sprites.py" "$P" >/dev/null 2>&1
+    ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc2=s=960x540:r=12:d=2" -pix_fmt yuv420p "$P/in.mp4"
+    if node "$CV_SKILL/pixel/selftest.mjs" >"$T/px.log" 2>&1 \
+       && bash "$CV_HERE/render.sh" "$P/scene.html" "$P/px.mp4" --provider html --width 1920 --height 1080 --fps 24 --duration 3 >>"$T/px.log" 2>&1 && ! grep -q WARNING "$T/px.log" \
+       && "$CV_PY" "$CV_HERE/qa_pixels.py" "$P/px.mp4" --scale 6 --palette pico8 --frames 12 >>"$T/px.log" 2>&1 \
+       && "$CV_PY" "$CV_HERE/pixelate.py" "$P/in.mp4" "$P/pz.mp4" --scale 4 --palette pico8 >>"$T/px.log" 2>&1 \
+       && "$CV_PY" "$CV_HERE/qa_pixels.py" "$P/pz.mp4" --scale 4 --palette pico8 --frames 12 >>"$T/px.log" 2>&1; then
+      row render "$n+pixel" PASS "cvpixel logic; the example scene is exact 6 x 6 blocks of PICO-8 colours; pixelate.py output is exact 4 x 4 blocks of them"
+    else row render "$n+pixel" FAIL "$(grep -m1 -E "FAIL|WARNING|error|Error|404|not a pure" "$T/px.log" || tail -1 "$T/px.log")"; fi
+  fi
 }
 
 test_assemble() {
